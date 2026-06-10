@@ -3352,7 +3352,7 @@ function buildAttack(atkLU, defLU, aC, dC, aT, dT, aSyn, dSyn, ms) {
     };
   }
   // ── ПЕНАЛЬТИ — форвард вошёл в штрафную, защитник фолит (4%) ────────────────
-  if (d2.won && Math.random() < 0.04) {
+  if (d2.won && Math.random() < 0.038) {
     const penBase = Math.round(fw.com * 0.75 + fw.tec * 0.25);
     const penRoll = rnd(penBase, 10);
     const gkPenBase = Math.round(gk.phy * 0.45 + gk.vis * 0.45 + gk.com * 0.10);
@@ -3375,7 +3375,7 @@ function buildAttack(atkLU, defLU, aC, dC, aT, dT, aSyn, dSyn, ms) {
     return { steps, goal: penGoal };
   }
   // ── ШТРАФНОЙ от первого защитника (без dDF2) — 3% при PAC gap ≥10 ──────────
-  if (d2.won === false && fw.pac - dDf.pac >= 10 && Math.random() < 0.03) {
+  if (d2.won === false && fw.pac - dDf.pac >= 10 && Math.random() < 0.28) {
     const fk = resolveFK(fw, gk);
     if (ms && ms[fw.id]) ms[fw.id].shots++;
     if (fk.goal && ms && ms[fw.id]) ms[fw.id].goals++;
