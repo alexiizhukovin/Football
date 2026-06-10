@@ -9352,7 +9352,7 @@ function App() {
     setCoach: setCoach
   }), tab === "match" && /*#__PURE__*/React.createElement(MatchScreen, {
     key: seasonIdx,
-    squad: active.length >= 5 ? active : squad,
+    squad: active.length > 0 ? active : squad,
     coach: coach,
     setContracts: setContracts,
     ratingLeft: ratingLeft,
