@@ -1578,8 +1578,8 @@ function computeSynergies(squad, coach) {
     if (def.type === "pair") {
       if (def.archs[1] === "any") {
         const a = squad.find(p => p.archetype === def.archs[0]);
-        const b = squad.find(p => a && p.id !== a.id);
-        if (a && b) ids = [a.id, b.id];
+        const others = squad.filter(p => a && p.id !== a.id);
+        if (a && others.length > 0) ids = [a.id, ...others.map(p => p.id)];
       } else {
         const a = squad.find(p => p.archetype === def.archs[0]);
         const b = squad.find(p => p.archetype === def.archs[1]);
@@ -3184,6 +3184,28 @@ function buildAttack(atkLU, defLU, aC, dC, aT, dT, aSyn, dSyn, ms) {
       };
     }
   }
+  // Читающий центр: при проигранном центре — перехват выноса
+  if (!d1.won && dSyn.some(s => s.unlocked && s.effect.type === "reading_center" && (!s.effect.physruk || Math.random() < 0.5))) {
+    steps.push({
+      type: "info",
+      data: {
+        label: "🎵🛡 ЧИТАЮЩИЙ ЦЕНТР! Перехват",
+        note: "Метроном читает вынос — мяч возвращён!",
+        synergy: true
+      }
+    });
+    steps.push({
+      type: "end",
+      data: {
+        label: "❌ АТАКА ОСТАНОВЛЕНА",
+        note: "Читающий центр прервал атаку"
+      }
+    });
+    return {
+      steps,
+      goal: false
+    };
+  }
   const rawMB = d1.won ? tac.midBonus + (aC?.spec === "tactical" ? 20 : 0) + 10 : tac.midBonus + 5;
   const midBonus = Math.round(rawMB * mm);
   const mfAssistId = d1.won ? mf.id : null; // MF gets assist if attack ends in goal
@@ -3244,6 +3266,46 @@ function buildAttack(atkLU, defLU, aC, dC, aT, dT, aSyn, dSyn, ms) {
       goal: ls.goal
     };
   }
+  // Темп: после выигранного центра FW пропускает защитника
+  if (d1.won && aSyn.some(s => s.unlocked && s.effect.type === "tempo_skip" && (!s.effect.physruk || Math.random() < 0.5))) {
+    steps.push({
+      type: "info",
+      data: {
+        label: "🎵⚡ ТЕМП! Обход защитника",
+        note: `${fw.name} врывается напрямую к воротам!`,
+        synergy: true
+      }
+    });
+    const tShot = resolveDuel(fw, gk, "shot", aC, midBonus, aSyn, fat);
+    td(fw.id, gk.id, tShot.won);
+    if (ms) {
+      ms[fw.id].shots++;
+      if (tShot.won) {
+        ms[fw.id].goals++;
+      } else {
+        ms[gk.id].saves++;
+      }
+    }
+    if (mfAssistId && tShot.won && ms && ms[mfAssistId]) ms[mfAssistId].assists++;
+    steps.push({
+      type: "duel",
+      data: {
+        ...tShot,
+        label: "🔥 УДАР ПО ВОРОТАМ",
+        att: {
+          ...tShot.att,
+          ...fw,
+          pos: fw.pos
+        },
+        phase: "shot"
+      }
+    });
+    return {
+      steps,
+      goal: tShot.won
+    };
+  }
+
   // Phase 2
   const d2 = resolveDuel(fw, dDf, "dribble", aC, midBonus, aSyn, fat);
   td(fw.id, dDf.id, d2.won);
@@ -3706,7 +3768,8 @@ function buildAttack(atkLU, defLU, aC, dC, aT, dT, aSyn, dSyn, ms) {
     }
   }
   // Phase 3
-  const d3 = resolveDuel(fw, gk, "shot", aC, 0, aSyn, fat);
+  const hasPP = hasPerfectPass(aSyn) && mfAssistId != null;
+  const d3 = resolveDuel(fw, gk, "shot", aC, 0, hasPP ? aSyn : aSyn.filter(s => s.effect.type !== "perfect_pass_bonus"), fat);
   td(fw.id, gk.id, d3.won);
   if (ms) {
     if (ms[fw.id]) ms[fw.id].shots++;
@@ -3734,6 +3797,18 @@ function buildAttack(atkLU, defLU, aC, dC, aT, dT, aSyn, dSyn, ms) {
     if (!d3.won && !woodworkZone && ms && ms[gk.id]) ms[gk.id].saves++;
     // MF assist при добивании
     if (rebGoal && mfAssistId && ms && ms[mfAssistId] && mfAssistId !== fw.id) ms[mfAssistId].assists++;
+    // Update d3 narration to hint at woodwork
+    const d3idx = steps.findIndex(s => s.type === "duel" && s.data === d3);
+    if (d3idx >= 0) {
+      const woodNarr = isPost ? ["вратарь кончиками пальцев в стойку!", "дотянулся — но штанга!", "невероятный рефлекс — стойка!"] : ["выбил под перекладину!", "рука — мяч летит в перекладину!", "фантастический сэйв — перекладина!"];
+      steps[d3idx] = {
+        ...steps[d3idx],
+        data: {
+          ...steps[d3idx].data,
+          narr: woodNarr[Math.floor(Math.random() * woodNarr.length)]
+        }
+      };
+    }
     steps.push({
       type: "woodwork",
       data: {
@@ -4302,7 +4377,36 @@ function GoalOfMatchScreen({
   const min = event?.min || "?";
   // Build vizEvents — always show pass if assister exists, then dribble/duel if exists, always end with shot
   const vizEvents = [];
-  if (assister) vizEvents.push({
+  // Build full combo from all steps
+  const midStep2 = steps.find(s => s.type === "duel" && s.data?.phase === "midfield" && s.data?.won);
+  // 1. Розыгрыш в центре
+  if (midStep2) vizEvents.push({
+    type: "midfield",
+    from: {
+      x: 20,
+      y: 50
+    },
+    to: {
+      x: 38,
+      y: 46
+    },
+    label: `Центр — ${midStep2.data.att?.name || "МФ"}`,
+    sub: `VIS ${midStep2.data.att?.base || "?"}`
+  });
+  // 2. Пас к форварду
+  if (assister && midStep2) vizEvents.push({
+    type: "pass",
+    from: {
+      x: 38,
+      y: 38
+    },
+    to: {
+      x: 66,
+      y: 46
+    },
+    label: `Пас — ${assister.name}`,
+    sub: `VIS ${assister.vis || "?"}`
+  });else if (assister) vizEvents.push({
     type: "pass",
     from: {
       x: 38,
@@ -4315,6 +4419,7 @@ function GoalOfMatchScreen({
     label: `Пас — ${assister.name}`,
     sub: `VIS ${assister.vis || "?"}`
   });
+  // 3. Дриблинг / единоборство
   if (dribbleStep) {
     const defName = dribbleStep.data?.def?.name || "Защитник";
     vizEvents.push({
@@ -4346,12 +4451,34 @@ function GoalOfMatchScreen({
       sub: "Врывается в штрафную"
     });
   }
+  // 4. Прорыв MF (breakthrough)
+  const btStep = steps.find(s => s.type === "duel" && s.data?.label === "💥 МФ ЗАВЕРШАЕТ САМ");
+  if (btStep && !dribbleStep) vizEvents.push({
+    type: "dribble",
+    from: {
+      x: 46,
+      y: 50
+    },
+    to: {
+      x: 82,
+      y: 49
+    },
+    label: `Прорыв — ${scorer.name}`,
+    sub: "МФ врывается в штрафную!"
+  });
+  // 5. Удар
   const shotFrom = dribbleStep ? {
+    x: 82,
+    y: 49
+  } : btStep ? {
     x: 82,
     y: 49
   } : assister ? {
     x: 66,
     y: 46
+  } : midStep2 ? {
+    x: 50,
+    y: 50
   } : {
     x: 70,
     y: 50
