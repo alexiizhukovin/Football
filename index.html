@@ -8056,7 +8056,7 @@ function SquadScreen({
     }
   }, "\u0421\u0418\u041D\u0415\u0420\u0413\u0418\u0418"), /*#__PURE__*/React.createElement(SynergyPanel, {
     synergies: synergies,
-    squad: active.length > 0 ? active : autoSelectSquad(squad)
+    squad: active.length > 0 ? active : autoSelectSquad(squad, tactic)
   })), /*#__PURE__*/React.createElement("div", {
     style: {
       display: "flex",
@@ -9204,14 +9204,48 @@ function MatchScreen({
 }
 
 // ─── APP ──────────────────────────────────────────────────────────────────────
-// Auto-select best 5 from squad: GK mandatory + 4 highest OVR
-function autoSelectSquad(squad) {
+// Auto-select best 5 matching tactic slots: best per position
+function autoSelectSquad(squad, tactic = "1-2-1") {
   if (!squad || squad.length === 0) return [];
-  const gks = squad.filter(p => p.pos === "GK").sort((a, b) => ovr(b) - ovr(a));
-  const others = squad.filter(p => p.pos !== "GK").sort((a, b) => ovr(b) - ovr(a));
-  const gk = gks[0];
-  if (!gk) return others.slice(0, 5); // no GK — just top 5
-  return [gk, ...others.slice(0, 4)];
+  const slots = TACTIC_SLOTS[tactic] || TACTIC_SLOTS["1-2-1"];
+  // Count needed per position
+  const needed = {
+    GK: 0,
+    DF: 0,
+    MF: 0,
+    FW: 0
+  };
+  slots.forEach(s => needed[s] = (needed[s] || 0) + 1);
+  // Sort each position by OVR desc
+  const byPos = {};
+  ["GK", "DF", "MF", "FW"].forEach(pos => {
+    byPos[pos] = squad.filter(p => p.pos === pos).sort((a, b) => ovr(b) - ovr(a));
+  });
+  const result = [];
+  const used = new Set();
+  // Fill each slot with best available player of that position
+  ["GK", "DF", "MF", "FW"].forEach(pos => {
+    const count = needed[pos] || 0;
+    const pool = byPos[pos];
+    let filled = 0;
+    for (const p of pool) {
+      if (filled >= count) break;
+      if (!used.has(p.id)) {
+        result.push(p);
+        used.add(p.id);
+        filled++;
+      }
+    }
+  });
+  // If still < 5, fill with highest OVR remaining (OOP)
+  if (result.length < 5) {
+    const remaining = squad.filter(p => !used.has(p.id)).sort((a, b) => ovr(b) - ovr(a));
+    for (const p of remaining) {
+      if (result.length >= 5) break;
+      result.push(p);
+    }
+  }
+  return result;
 }
 function App() {
   const [tab, setTab] = useState("squad");
@@ -9351,7 +9385,12 @@ function App() {
     setActive: setActive,
     coach: coach,
     tactic: tactic,
-    setTactic: setTactic
+    setTactic: setTactic,
+    toggleActive: p => setActive(prev => prev.find(x => x.id === p.id) ? prev.filter(x => x.id !== p.id) : [...prev, p]),
+    removeFromSquad: id => {
+      setSquad(s => s.filter(x => x.id !== id));
+      setActive(a => a.filter(x => x.id !== id));
+    }
   }), tab === "draft" && /*#__PURE__*/React.createElement(DraftScreen, {
     squad: squad,
     setSquad: setSquad,
@@ -9361,7 +9400,7 @@ function App() {
     setCoach: setCoach
   }), tab === "match" && /*#__PURE__*/React.createElement(MatchScreen, {
     key: seasonIdx,
-    squad: active.length > 0 ? active : autoSelectSquad(squad),
+    squad: active.length > 0 ? active : autoSelectSquad(squad, tactic),
     coach: coach,
     setContracts: setContracts,
     ratingLeft: ratingLeft,
