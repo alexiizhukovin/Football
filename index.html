@@ -1,12 +1,10 @@
 <!DOCTYPE html>
-<html>
-<head>
+<html><head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
 <title>AUTO FOOTBALL 5v5</title>
 <style>*{box-sizing:border-box}body{margin:0;background:#080b0f;color:#fff;font-family:monospace}</style>
-</head>
-<body>
+</head><body>
 <div id="root"><div style="padding:20px">Loading...</div></div>
 <script>/**
  * @license React
@@ -8753,9 +8751,7 @@ function App() {
 }
 ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App));
 }catch(e){
-document.getElementById('root').innerHTML='<div style="color:red;padding:20px">ERROR: '+e.message+'</div>';
-console.error(e);
+document.getElementById('root').innerHTML='<div style="color:red;padding:20px">ERROR: '+e.message+'<br><pre>'+e.stack+'</pre></div>';
 }
 </script>
-</body>
-</html>
+</body></html>
