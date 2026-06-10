@@ -1568,6 +1568,34 @@ const SYNDEF = [{
     type: "reading_center",
     physruk: ph
   })
+}, {
+  id: "sharp_counter",
+  type: "pair",
+  name: "Острый вынос",
+  emoji: "🦵⚡",
+  archs: ["wall", "interceptor"],
+  desc: "Перехватчик читает игру и бьёт точно на форварда — атака минует центр поля.",
+  bonus: "35% шанс контратаки при перехвате",
+  needsCoach: "defense",
+  color: "#f97316",
+  apply: (p, cb, ph) => ({
+    type: "sharp_counter",
+    chance: ph ? 0.18 : 0.35
+  })
+}, {
+  id: "wall_double_roll",
+  type: "team",
+  name: "Стальной контакт",
+  emoji: "🧱💪",
+  archs: ["wall"],
+  minCount: 1,
+  desc: "Стена бросает кубик дважды в единоборстве — берёт лучший результат.",
+  bonus: "Стена: двойной кубик в дриблинге",
+  needsCoach: "physical",
+  color: "#64748b",
+  apply: (p, cb, ph) => ({
+    type: "wall_double_roll"
+  })
 }];
 function computeSynergies(squad, coach) {
   const active = [];
@@ -1635,6 +1663,10 @@ function applySyn(syn, player, phase) {
       bonus += e.val;
       labels.push(s.emoji + s.name + ":+" + e.val);
     }
+    if (e.type === "wall_double_roll" && player.archetype === "wall" && phase === "dribble") {
+      dr = true;
+      labels.push(s.emoji + s.name + ": x2");
+    }
   }
   return {
     bonus,
@@ -1673,13 +1705,8 @@ const COACHES = [{
   traitDesc: "+10 COM форвардам при ударе",
   rare: "gold",
   coverBonus: 0.05,
-  bonus: {
-    stat: "com",
-    pos: "FW",
-    val: 10,
-    phase: "shot"
-  },
-  unlocks: ["double_sprint", "golden_moment"]
+  bonus: { stat: "com", pos: "FW", val: 10, phase: "shot" },
+  unlocks: ["double_sprint", "leader_boost"]
 }, {
   id: 2,
   name: "Иванов С.",
@@ -1689,13 +1716,8 @@ const COACHES = [{
   traitDesc: "+12 PHY вратарю",
   rare: "silver",
   coverBonus: 0.15,
-  bonus: {
-    stat: "phy",
-    pos: "GK",
-    val: 12,
-    phase: "shot"
-  },
-  unlocks: ["iron_wall"]
+  bonus: { stat: "phy", pos: "GK", val: 12, phase: "shot" },
+  unlocks: ["iron_wall", "steel_will"]
 }, {
   id: 3,
   name: "Мамедов Р.",
@@ -1705,47 +1727,21 @@ const COACHES = [{
   traitDesc: "+20 к бонусу розыгрыша",
   rare: "gold",
   coverBonus: 0.20,
-  bonus: {
-    stat: "vis",
-    pos: "MF",
-    val: 8,
-    phase: "midfield"
-  },
+  bonus: { stat: "vis", pos: "MF", val: 8, phase: "midfield" },
   unlocks: ["perfect_pass", "tiki_taka"]
 }, {
   id: 4,
-  name: "Ли Ч.",
-  spec: "technical",
-  lvl: 1,
-  trait: "Муштра",
-  traitDesc: "+8 TEC всем игрокам",
-  rare: "bronze",
-  coverBonus: 0.10,
-  bonus: {
-    stat: "tec",
-    pos: "ALL",
-    val: 8,
-    phase: "dribble"
-  },
-  unlocks: []
+  name: "Лукас М.",
+  spec: "tactical",
+  lvl: 2,
+  trait: "Темп и перехват",
+  traitDesc: "+6 PHY всем в единоборстве",
+  rare: "silver",
+  coverBonus: 0.12,
+  bonus: { stat: "phy", pos: "ALL", val: 6, phase: "dribble" },
+  unlocks: ["tempo", "reading_center"]
 }, {
   id: 5,
-  name: "Гарсия Х.",
-  spec: "attack",
-  lvl: 2,
-  trait: "Контрпресс",
-  traitDesc: "+8 PAC форвардам",
-  rare: "silver",
-  coverBonus: 0.08,
-  bonus: {
-    stat: "pac",
-    pos: "FW",
-    val: 8,
-    phase: "dribble"
-  },
-  unlocks: ["double_sprint"]
-}, {
-  id: 6,
   name: "Краус Т.",
   spec: "defense",
   lvl: 3,
@@ -1753,29 +1749,30 @@ const COACHES = [{
   traitDesc: "+10 PHY защитникам",
   rare: "gold",
   coverBonus: 0.18,
-  bonus: {
-    stat: "phy",
-    pos: "DF",
-    val: 10,
-    phase: "dribble"
-  },
-  unlocks: ["iron_wall"]
+  bonus: { stat: "phy", pos: "DF", val: 10, phase: "dribble" },
+  unlocks: ["iron_wall", "steel_will", "sharp_counter"]
+}, {
+  id: 6,
+  name: "Ли Ч.",
+  spec: "physical",
+  lvl: 1,
+  trait: "Мощный контакт",
+  traitDesc: "+6 PHY всем, Стена бросает кубик дважды",
+  rare: "bronze",
+  coverBonus: 0.10,
+  bonus: { stat: "phy", pos: "ALL", val: 6, phase: "dribble" },
+  unlocks: ["wall_double_roll"]
 }, {
   id: 7,
   name: "Физрук",
   spec: "physical",
   lvl: 1,
-  trait: "Универсал",
-  traitDesc: "+6 PHY всем, синергии 50%",
+  trait: "Форсированный темп",
+  traitDesc: "+6 PHY всем, Стена бросает кубик дважды",
   rare: "bronze",
   coverBonus: 0.08,
-  bonus: {
-    stat: "phy",
-    pos: "ALL",
-    val: 6,
-    phase: "dribble"
-  },
-  unlocks: [],
+  bonus: { stat: "phy", pos: "ALL", val: 6, phase: "dribble" },
+  unlocks: ["wall_double_roll"],
   isPhysruk: true
 }];
 const OPP = {
@@ -3321,8 +3318,10 @@ function buildAttack(atkLU, defLU, aC, dC, aT, dT, aSyn, dSyn, ms) {
       ms[dDf.id].tackles++;
       ms[dDf.id].clearances++;
     }
-    // Вынос вперёд к своему форварду с шансом 35%
-    if (Math.random() < 0.35) {
+    // Вынос вперёд — базовый 35% или sharp_counter синергия
+    const sharpCtr = dSyn.find(s => s.unlocked && s.effect.type === "sharp_counter");
+    const counterChance = sharpCtr ? sharpCtr.effect.chance : 0.35;
+    if (Math.random() < counterChance) {
       // For counter: extract flat player arrays from lineups
       const atkFlat = atkLU.slots.map(s => s.player).filter(Boolean);
       const defFlat = defLU.slots.map(s => s.player).filter(Boolean);
@@ -3850,6 +3849,9 @@ function buildAttack(atkLU, defLU, aC, dC, aT, dT, aSyn, dSyn, ms) {
     const atkFlat = atkLU.slots.map(s => s.player).filter(Boolean);
     const defFlat = defLU.slots.map(s => s.player).filter(Boolean);
     const myGk = lineupBySlot(atkLU, "GK")[0] || atkFlat[atkFlat.length - 1];
+    const sharpCtrGk = dSyn.find(s => s.unlocked && s.effect.type === "sharp_counter");
+    const gkCtrChance = sharpCtrGk ? sharpCtrGk.effect.chance : 0.35;
+    if (Math.random() > gkCtrChance) { return { steps, goal: false }; }
     const ctr = resolveCounterAttack(gk, defFlat, myGk, ms, dDFs.length, aFWs.length);
     if (ctr) {
       steps.push({
