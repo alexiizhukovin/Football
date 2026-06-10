@@ -3142,6 +3142,12 @@ function buildAttack(atkLU, defLU, aC, dC, aT, dT, aSyn, dSyn, ms) {
   });
   if (!d1.won) {
     if (ms && ms[dMf.id]) ms[dMf.id].tackles++;
+    // Читающий центр: перехват до cover и выноса
+    if (dSyn.some(s => s.unlocked && s.effect.type === "reading_center" && (!s.effect.physruk || Math.random() < 0.5))) {
+      steps.push({ type: "info", data: { label: "🎵🛡 ЧИТАЮЩИЙ ЦЕНТР! Перехват", note: "Метроном читает вынос — мяч возвращён!", synergy: true } });
+      steps.push({ type: "end", data: { label: "❌ АТАКА ОСТАНОВЛЕНА", note: "Читающий центр прервал атаку" } });
+      return { steps, goal: false };
+    }
     const mc = tac.coverChance + (aC?.coverBonus || 0);
     if (aMF2 && aMFs.length >= 2 && Math.random() < mc) {
       const cv = resolveCover(aMF2, dMf, "midfield", aC, aT, aSyn);
@@ -3185,28 +3191,6 @@ function buildAttack(atkLU, defLU, aC, dC, aT, dT, aSyn, dSyn, ms) {
         goal: false
       };
     }
-  }
-  // Читающий центр: при проигранном центре — перехват выноса
-  if (!d1.won && dSyn.some(s => s.unlocked && s.effect.type === "reading_center" && (!s.effect.physruk || Math.random() < 0.5))) {
-    steps.push({
-      type: "info",
-      data: {
-        label: "🎵🛡 ЧИТАЮЩИЙ ЦЕНТР! Перехват",
-        note: "Метроном читает вынос — мяч возвращён!",
-        synergy: true
-      }
-    });
-    steps.push({
-      type: "end",
-      data: {
-        label: "❌ АТАКА ОСТАНОВЛЕНА",
-        note: "Читающий центр прервал атаку"
-      }
-    });
-    return {
-      steps,
-      goal: false
-    };
   }
   const rawMB = d1.won ? tac.midBonus + (aC?.spec === "tactical" ? 20 : 0) + 10 : tac.midBonus + 5;
   const midBonus = Math.round(rawMB * mm);
@@ -3322,6 +3306,15 @@ function buildAttack(atkLU, defLU, aC, dC, aT, dT, aSyn, dSyn, ms) {
       ms[dDf.id].tackles++;
       ms[dDf.id].clearances++;
     }
+    // ── ШТРАФНОЙ — защитник фолит при PAC gap ≥10 (28%) ──────────────────────
+    if (fw.pac - dDf.pac >= 10 && Math.random() < 0.28) {
+      const fk = resolveFK(fw, gk);
+      if (ms && ms[fw.id]) ms[fw.id].shots++;
+      if (fk.goal && ms && ms[fw.id]) ms[fw.id].goals++;
+      if (!fk.goal && ms && ms[gk.id]) ms[gk.id].saves++;
+      steps.push({ type: "foul", data: { label: "🟨 ФОЛ! ШТРАФНОЙ", note: `${dDf.name} фолит на ${fw.name}`, pacGap: fw.pac - dDf.pac, shotRoll: fk.shotRoll, gkRoll: fk.gkRoll, goal: fk.goal } });
+      return { steps, goal: fk.goal };
+    }
     // Вынос вперёд — базовый 35% или sharp_counter синергия
     const sharpCtr = dSyn.find(s => s.unlocked && s.effect.type === "sharp_counter");
     const counterChance = sharpCtr ? sharpCtr.effect.chance : 0.35;
@@ -3378,25 +3371,7 @@ function buildAttack(atkLU, defLU, aC, dC, aT, dT, aSyn, dSyn, ms) {
     });
     return { steps, goal: penGoal };
   }
-  // ── ШТРАФНОЙ от первого защитника (без dDF2) — 3% при PAC gap ≥10 ──────────
-  if (d2.won === false && fw.pac - dDf.pac >= 10 && Math.random() < 0.28) {
-    const fk = resolveFK(fw, gk);
-    if (ms && ms[fw.id]) ms[fw.id].shots++;
-    if (fk.goal && ms && ms[fw.id]) ms[fw.id].goals++;
-    if (!fk.goal && ms && ms[gk.id]) ms[gk.id].saves++;
-    steps.push({
-      type: "foul",
-      data: {
-        label: "🟨 ФОЛ! ШТРАФНОЙ",
-        note: `${dDf.name} фолит на ${fw.name}`,
-        pacGap: fw.pac - dDf.pac,
-        shotRoll: fk.shotRoll,
-        gkRoll: fk.gkRoll,
-        goal: fk.goal
-      }
-    });
-    return { steps, goal: fk.goal };
-  }
+
 
   // ── 2 FW PERFECT PASS path ──────────────────────────────────────────────────
   // If 2 FWs, perfect_pass active, fw2 is Sniper → cross pass before reaching GK
