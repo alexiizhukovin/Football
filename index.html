@@ -1716,7 +1716,7 @@ const COACHES = [{
   traitDesc: "+12 PHY вратарю",
   rare: "silver",
   coverBonus: 0.15,
-  bonus: { stat: "phy", pos: "GK", val: 12, phase: "shot" },
+  bonus: { stat: "phy", pos: "GK", val: 6, phase: "shot" },
   unlocks: ["iron_wall", "steel_will"]
 }, {
   id: 3,
@@ -2736,7 +2736,10 @@ function resolveDuel(att, def, phase, coach, midBonus, syn, fatigue = 0, dSyn = 
     aSK = "vis";
     dSK = "vis";
     aBase = Math.round(att.vis * .5 + att.tec * .5);
-    dBase = Math.round(def.vis * .5 + def.tec * .5);
+    // Cap: защитник не может иметь VIS/TEC более чем на 10 выше атакующего
+    const _capVis = Math.min(def.vis, att.vis + 10);
+    const _capTec = Math.min(def.tec, att.tec + 10);
+    dBase = Math.round(_capVis * .5 + _capTec * .5);
   } else if (phase === "dribble") {
     label = "💥 ЕДИНОБОРСТВО С ЗАЩИТНИКОМ";
     if (att.archetype === "sprinter") {
