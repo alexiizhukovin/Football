@@ -1,10 +1,4 @@
-<!DOCTYPE html><html><head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
-<title>AUTO FOOTBALL 5v5</title>
-<style>*{box-sizing:border-box}body{margin:0;background:#080b0f;color:#fff;font-family:monospace}</style>
-</head><body><div id="root"></div>
-<script>/**
+<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no"><title>AUTO FOOTBALL 5v5</title><style>*{box-sizing:border-box}body{margin:0;background:#080b0f;color:#fff;font-family:monospace}</style></head><body><div id="root"></div><script>/**
  * @license React
  * react.production.min.js
  *
@@ -302,8 +296,7 @@ c,!1,d,e);a[Ja]=b.current;sc(8===a.nodeType?a.parentNode:a);return new Xf(b)};Q.
 var d=null!=c&&c.hydratedSources||null,e=!1,f="",g=aj;null!==c&&void 0!==c&&(!0===c.unstable_strictMode&&(e=!0),void 0!==c.identifierPrefix&&(f=c.identifierPrefix),void 0!==c.onRecoverableError&&(g=c.onRecoverableError));b=Wi(b,null,a,1,null!=c?c:null,e,!1,f,g);a[Ja]=b.current;sc(a);if(d)for(a=0;a<d.length;a++)c=d[a],e=c._getVersion,e=e(c._source),null==b.mutableSourceEagerHydrationData?b.mutableSourceEagerHydrationData=[c,e]:b.mutableSourceEagerHydrationData.push(c,e);return new Ud(b)};Q.render=
 function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmountComponentAtNode=function(a){if(!Vd(a))throw Error(m(40));return a._reactRootContainer?(yb(function(){Wd(null,null,a,!1,function(){a._reactRootContainer=null;a[Ja]=null})}),!0):!1};Q.unstable_batchedUpdates=Tf;Q.unstable_renderSubtreeIntoContainer=function(a,b,c,d){if(!Vd(c))throw Error(m(200));if(null==a||void 0===a._reactInternals)throw Error(m(38));return Wd(a,b,c,!1,d)};Q.version="18.3.1-next-f1338f8080-20240426"});
 })();
-</script>
-<script>try{const {
+</script><script>try{const {
   useState,
   useEffect,
   useRef,
@@ -4154,6 +4147,136 @@ function FootballPitch({
 
 // ─── MATCH STATS ──────────────────────────────────────────────────────────────
 // ─── GOAL OF THE MATCH SCREEN ─────────────────────────────────────────────────
+const MY_FIELD_POSITIONS = {
+  "2-1-1": [{
+    slot: "FW",
+    x: 70,
+    y: 35
+  }, {
+    slot: "FW",
+    x: 70,
+    y: 62
+  }, {
+    slot: "MF",
+    x: 46,
+    y: 50
+  }, {
+    slot: "DF",
+    x: 22,
+    y: 50
+  }, {
+    slot: "GK",
+    x: 7,
+    y: 50
+  }],
+  "1-2-1": [{
+    slot: "FW",
+    x: 70,
+    y: 50
+  }, {
+    slot: "MF",
+    x: 46,
+    y: 35
+  }, {
+    slot: "MF",
+    x: 46,
+    y: 65
+  }, {
+    slot: "DF",
+    x: 22,
+    y: 50
+  }, {
+    slot: "GK",
+    x: 7,
+    y: 50
+  }],
+  "1-1-2": [{
+    slot: "FW",
+    x: 70,
+    y: 50
+  }, {
+    slot: "MF",
+    x: 46,
+    y: 50
+  }, {
+    slot: "DF",
+    x: 22,
+    y: 35
+  }, {
+    slot: "DF",
+    x: 22,
+    y: 65
+  }, {
+    slot: "GK",
+    x: 7,
+    y: 50
+  }]
+};
+const OPP_FIELD_POSITIONS = {
+  "2-1-1": [{
+    slot: "FW",
+    x: 30,
+    y: 35
+  }, {
+    slot: "FW",
+    x: 30,
+    y: 62
+  }, {
+    slot: "MF",
+    x: 54,
+    y: 50
+  }, {
+    slot: "DF",
+    x: 78,
+    y: 50
+  }, {
+    slot: "GK",
+    x: 93,
+    y: 50
+  }],
+  "1-2-1": [{
+    slot: "FW",
+    x: 30,
+    y: 50
+  }, {
+    slot: "MF",
+    x: 54,
+    y: 35
+  }, {
+    slot: "MF",
+    x: 54,
+    y: 65
+  }, {
+    slot: "DF",
+    x: 78,
+    y: 50
+  }, {
+    slot: "GK",
+    x: 93,
+    y: 50
+  }],
+  "1-1-2": [{
+    slot: "FW",
+    x: 30,
+    y: 50
+  }, {
+    slot: "MF",
+    x: 54,
+    y: 50
+  }, {
+    slot: "DF",
+    x: 78,
+    y: 35
+  }, {
+    slot: "DF",
+    x: 78,
+    y: 65
+  }, {
+    slot: "GK",
+    x: 93,
+    y: 50
+  }]
+};
 function GoalOfMatchScreen({
   data,
   onClose
@@ -9248,7 +9371,4 @@ function App() {
     onClick: () => setTab(t),
     style: tabStyle(t)
   }, l)))));
-}
-ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App));
-}catch(e){document.getElementById('root').innerHTML='<div style="color:red;padding:20px">ERROR: '+e.message+'</div>';}
-</script></body></html>
+}ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App));}catch(e){document.getElementById('root').innerHTML='<div style="color:red;padding:20px">ERROR: '+e.message+'</div>';}</script></body></html>
