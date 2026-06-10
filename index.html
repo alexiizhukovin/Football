@@ -6385,8 +6385,8 @@ function SpecialCard({
       color: d.goal ? C.green : C.red
     }
   }, d.goal ? "ГОЛ! КРАСИВЫЙ УДАР!" : "Вратарь поймал!"))));
-  const col = step.type === "info" ? C.gold : C.muted;
-  const icon = step.type === "info" ? "🦵" : "❌";
+  const col = step.type === "info" ? (step.data?.synergy ? "#06b6d4" : C.gold) : C.muted;
+  const icon = step.type === "info" ? (step.data?.synergy ? "🎵🛡" : "🦵") : "❌";
   return /*#__PURE__*/React.createElement("div", {
     style: {
       opacity: vis ? 1 : 0,
@@ -7646,7 +7646,7 @@ function EventBlock({
     }, B * .18);
   }, [stepIdx, event.steps.length, B]);
   const tc = isMe ? C.green : C.red;
-  const dc = event.steps.filter(s => s.type === "duel" || s.type === "cover").length;
+  const dc = event.steps.filter(s => s.type === "duel" || s.type === "cover" || s.type === "info" || s.type === "end").length;
   return /*#__PURE__*/React.createElement("div", {
     style: {
       marginBottom: 6
