@@ -8786,35 +8786,9 @@ function MatchScreen({
       });
     }, 800 / speed);
   }, [activeIdx, result, speed]);
-  if (squad.length < 5) return /*#__PURE__*/React.createElement("div", {
-    style: {
-      textAlign: "center",
-      padding: "48px 0",
-      color: C.muted
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 36,
-      marginBottom: 12
-    }
-  }, "\u26BD"), /*#__PURE__*/React.createElement("div", null, "\u0412\u044B\u0431\u0435\u0440\u0438 5 \u0438\u0433\u0440\u043E\u043A\u043E\u0432 \u0432\u043E \u0432\u043A\u043B\u0430\u0434\u043A\u0435 \u0421\u043E\u0441\u0442\u0430\u0432"));
-  if (!hasGK) return /*#__PURE__*/React.createElement("div", {
-    style: {
-      textAlign: "center",
-      padding: "48px 0",
-      color: C.red
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 36,
-      marginBottom: 12
-    }
-  }, "\uD83E\uDDE4"), /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 14,
-      fontWeight: 700
-    }
-  }, "\u041D\u0435\u0442 \u0432\u0440\u0430\u0442\u0430\u0440\u044F!"));
+
+  // Always show tactic selector, even if squad not ready yet
+
   return /*#__PURE__*/React.createElement("div", {
     style: {
       paddingBottom: 20
@@ -9063,7 +9037,7 @@ function MatchScreen({
       marginBottom: 8,
       fontFamily: "monospace"
     }
-  }, "\u26A0\uFE0F ", startErr), /*#__PURE__*/React.createElement("button", {
+  }, "\u26A0\uFE0F ", startErr), squad.length >= 5 && hasGK ? /*#__PURE__*/React.createElement("button", {
     onClick: () => startMatch(_t),
     style: {
       width: "100%",
@@ -9077,7 +9051,19 @@ function MatchScreen({
       fontWeight: 900,
       fontFamily: "monospace"
     }
-  }, "\u25B6 \u041D\u0410\u0427\u0410\u0422\u042C \u041C\u0410\u0422\u0427")) : /*#__PURE__*/React.createElement("div", {
+  }, "\u25B6 \u041D\u0410\u0427\u0410\u0422\u042C \u041C\u0410\u0422\u0427") : /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: "100%",
+      padding: "11px 0",
+      borderRadius: 9,
+      background: "rgba(255,255,255,0.05)",
+      border: `1px solid ${C.bord}`,
+      textAlign: "center",
+      color: C.muted,
+      fontSize: 12,
+      fontFamily: "monospace"
+    }
+  }, squad.length < 5 ? "⚽ Задрафтуй игроков" : "🧤 Нужен вратарь")) : /*#__PURE__*/React.createElement("div", {
     style: {
       padding: "24px",
       textAlign: "center",
