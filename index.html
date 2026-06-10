@@ -3351,6 +3351,49 @@ function buildAttack(atkLU, defLU, aC, dC, aT, dT, aSyn, dSyn, ms) {
       goal: false
     };
   }
+  // ── ПЕНАЛЬТИ — форвард вошёл в штрафную, защитник фолит (4%) ────────────────
+  if (d2.won && Math.random() < 0.04) {
+    const penBase = Math.round(fw.com * 0.75 + fw.tec * 0.25);
+    const penRoll = rnd(penBase, 10);
+    const gkPenBase = Math.round(gk.phy * 0.45 + gk.vis * 0.45 + gk.com * 0.10);
+    const gkPenRoll = rnd(gkPenBase, 14);
+    const penGoal = penRoll > gkPenRoll;
+    if (ms && ms[fw.id]) ms[fw.id].shots++;
+    if (penGoal && ms && ms[fw.id]) ms[fw.id].goals++;
+    if (!penGoal && ms && ms[gk.id]) ms[gk.id].saves++;
+    if (mfAssistId && penGoal && ms && ms[mfAssistId]) ms[mfAssistId].assists++;
+    steps.push({
+      type: "penalty",
+      data: {
+        label: "🟥 ПЕНАЛЬТИ!",
+        note: `${dDf.name} фолит на ${fw.name} в штрафной`,
+        shooter: { name: fw.name, arch: ARCH[fw.archetype], base: penBase, roll: penRoll },
+        gk: { name: gk.name, arch: ARCH[gk.archetype], base: gkPenBase, roll: gkPenRoll },
+        goal: penGoal
+      }
+    });
+    return { steps, goal: penGoal };
+  }
+  // ── ШТРАФНОЙ от первого защитника (без dDF2) — 3% при PAC gap ≥10 ──────────
+  if (d2.won === false && fw.pac - dDf.pac >= 10 && Math.random() < 0.03) {
+    const fk = resolveFK(fw, gk);
+    if (ms && ms[fw.id]) ms[fw.id].shots++;
+    if (fk.goal && ms && ms[fw.id]) ms[fw.id].goals++;
+    if (!fk.goal && ms && ms[gk.id]) ms[gk.id].saves++;
+    steps.push({
+      type: "foul",
+      data: {
+        label: "🟨 ФОЛ! ШТРАФНОЙ",
+        note: `${dDf.name} фолит на ${fw.name}`,
+        pacGap: fw.pac - dDf.pac,
+        shotRoll: fk.shotRoll,
+        gkRoll: fk.gkRoll,
+        goal: fk.goal
+      }
+    });
+    return { steps, goal: fk.goal };
+  }
+
   // ── 2 FW PERFECT PASS path ──────────────────────────────────────────────────
   // If 2 FWs, perfect_pass active, fw2 is Sniper → cross pass before reaching GK
   const fw2 = aFWs.filter(p => p?.id !== fw?.id)[0] || null;
@@ -3843,15 +3886,13 @@ function buildAttack(atkLU, defLU, aC, dC, aT, dT, aSyn, dSyn, ms) {
     if (d3.won && mfAssistId && ms[mfAssistId] && mfAssistId !== fw.id) ms[mfAssistId].assists++;
   }
 
-  // Вратарь поймал → вынос с шансом 25%
-  if (!d3.won && Math.random() < 0.25) {
-    // For counter: extract flat player arrays from lineups
+  // Вратарь поймал → вынос (sharp_counter: 35% базово, с синергией выше)
+  const sharpCtrGk = dSyn.find(s => s.unlocked && s.effect.type === "sharp_counter");
+  const gkCtrChance = sharpCtrGk ? sharpCtrGk.effect.chance : 0.25;
+  if (!d3.won && Math.random() < gkCtrChance) {
     const atkFlat = atkLU.slots.map(s => s.player).filter(Boolean);
     const defFlat = defLU.slots.map(s => s.player).filter(Boolean);
     const myGk = lineupBySlot(atkLU, "GK")[0] || atkFlat[atkFlat.length - 1];
-    const sharpCtrGk = dSyn.find(s => s.unlocked && s.effect.type === "sharp_counter");
-    const gkCtrChance = sharpCtrGk ? sharpCtrGk.effect.chance : 0.35;
-    if (Math.random() > gkCtrChance) { return { steps, goal: false }; }
     const ctr = resolveCounterAttack(gk, defFlat, myGk, ms, dDFs.length, aFWs.length);
     if (ctr) {
       steps.push({
@@ -7648,7 +7689,7 @@ function EventBlock({
     }, B * .18);
   }, [stepIdx, event.steps.length, B]);
   const tc = isMe ? C.green : C.red;
-  const dc = event.steps.filter(s => s.type === "duel" || s.type === "cover" || s.type === "info" || s.type === "end").length;
+  const dc = event.steps.filter(s => s.type === "duel" || s.type === "cover" || s.type === "info" || s.type === "end" || s.type === "penalty" || s.type === "foul").length;
   return /*#__PURE__*/React.createElement("div", {
     style: {
       marginBottom: 6
@@ -7727,6 +7768,12 @@ function EventBlock({
     speed: speed,
     onDone: i === stepIdx && !allDone ? handleDone : undefined
   }) : s.type === "perfect_pass_cross" ? /*#__PURE__*/React.createElement(PerfectPassCard, {
+    key: i,
+    data: s.data,
+    isMyAttack: isMe,
+    speed: speed,
+    onDone: i === stepIdx && !allDone ? handleDone : undefined
+  }) : s.type === "penalty" ? /*#__PURE__*/React.createElement(PenaltyCard, {
     key: i,
     data: s.data,
     isMyAttack: isMe,
