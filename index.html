@@ -2903,12 +2903,15 @@ function resolveLongShot(fw, gk, syn) {
   const gkBase = Math.round(gk.phy * .78 + gk.vis * .18 + gk.com * .04);
   const aR = rnd(aF, 16),
     dR = rnd(gkBase, 20);
+  const goal = aR > dR;
+  const woodwork = !goal && Math.abs(aR - dR) <= 3;
   return {
     shotFinal: aF,
     gkBase,
     shotRoll: aR,
     gkRoll: dR,
-    goal: aR > dR,
+    goal,
+    woodwork,
     isSniper: isSn,
     sniperBonus: sb,
     synLabels: synR.labels
@@ -6417,7 +6420,7 @@ function SpecialCard({
       fontWeight: 700,
       color: d.goal ? C.green : C.red
     }
-  }, d.goal ? "ГОЛ! КРАСИВЫЙ УДАР!" : "Вратарь поймал!"))));
+  }, d.goal ? "ГОЛ! КРАСИВЫЙ УДАР!" : d.woodwork ? "🏒 ШТАНГА/ПЕРЕКЛАДИНА!" : "Вратарь поймал!"))));
   const col = step.type === "info" ? (step.data?.synergy ? "#06b6d4" : C.gold) : C.muted;
   const icon = step.type === "info" ? (step.data?.synergy ? "🎵🛡" : "🦵") : "❌";
   return /*#__PURE__*/React.createElement("div", {
@@ -7679,7 +7682,7 @@ function EventBlock({
     }, B * .18);
   }, [stepIdx, event.steps.length, B]);
   const tc = isMe ? C.green : C.red;
-  const dc = event.steps.filter(s => s.type === "duel" || s.type === "cover" || s.type === "info" || s.type === "end" || s.type === "penalty" || s.type === "foul").length;
+  const dc = event.steps.filter(s => s.type === "duel" || s.type === "cover" || s.type === "info" || s.type === "end" || s.type === "penalty" || s.type === "foul" || s.type === "counter").length;
   return /*#__PURE__*/React.createElement("div", {
     style: {
       marginBottom: 6
