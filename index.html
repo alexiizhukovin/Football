@@ -5,7 +5,7 @@
 <title>AUTO FOOTBALL 5v5</title>
 <style>*{box-sizing:border-box}body{margin:0;background:#080b0f;color:#fff;font-family:monospace}</style>
 </head><body>
-<div id="root"><div style="padding:20px">Loading...</div></div>
+<div id="root"></div>
 <script>/**
  * @license React
  * react.production.min.js
@@ -307,8 +307,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
 })();
 </script>
 <script>
-try{
-const {
+try{const {
   useState,
   useEffect,
   useRef,
@@ -8123,7 +8122,9 @@ function MatchScreen({
       const s = {
         ...scoreRef.current
       };
-      if (ev.goal && ev.team === "my") s.my++;else if (ev.goal && ev.team === "opp") s.opp++;
+      const isGoal = ev.eff_goal ?? ev.goal;
+      const team = ev.eff_team ?? ev.team;
+      if (isGoal && team === "my") s.my++;else if (isGoal && team === "opp") s.opp++;
       scoreRef.current = s;
       setScore({
         ...s
@@ -8750,8 +8751,5 @@ function App() {
   }, l)))));
 }
 ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App));
-}catch(e){
-document.getElementById('root').innerHTML='<div style="color:red;padding:20px">ERROR: '+e.message+'<br><pre>'+e.stack+'</pre></div>';
-}
-</script>
-</body></html>
+}catch(e){document.getElementById('root').innerHTML='<div style="color:red;padding:20px">ERROR: '+e.message+'</div>';}
+</script></body></html>
