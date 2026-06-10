@@ -3212,8 +3212,10 @@ function buildAttack(atkLU, defLU, aC, dC, aT, dT, aSyn, dSyn, ms) {
         ...btShot,
         label: "💥 МФ ЗАВЕРШАЕТ САМ",
         att: {
+          ...btShot.att,
           ...mf,
-          pos: "MF"
+          pos: "MF",
+          name: mf.name
         },
         phase: "shot"
       }
