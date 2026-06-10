@@ -2790,11 +2790,13 @@ function resolveDuel(att, def, phase, coach, midBonus, syn, fatigue = 0, dSyn = 
     dr = synR.doubleRoll;
   const midAdd = phase === "dribble" ? midBonus : 0;
   const aFinal = afterArch - fatPen + cBonus + midAdd + synBonus;
-  let aRoll = rnd(aFinal, 24);
+  const aSpread = phase === "midfield" ? 30 : phase === "shot" ? 40 : 24;
+  const dSpread = phase === "shot" ? 28 : 22;
+  let aRoll = rnd(aFinal, aSpread);
   if (dr) {
-    aRoll = Math.max(aRoll, rnd(aFinal, 24));
+    aRoll = Math.max(aRoll, rnd(aFinal, aSpread));
   }
-  const dRoll = rnd(dFinal, 22);
+  const dRoll = rnd(dFinal, dSpread);
   const won = aRoll > dRoll;
   return {
     phase,
