@@ -4288,34 +4288,38 @@ function GoalOfMatchScreen({
   const mySquad = data?.mySquad || [];
   const oppSquad = data?.oppSquad || [];
   const steps = event?.steps || [];
-  const scorer = steps.find(s => s.type === "duel" && s.data?.phase === "shot" && s.data?.won)?.data?.att || steps.find(s => s.type === "duel" && s.data?.phase === "dribble" && s.data?.won)?.data?.att || {
+  // Find scorer — try multiple sources
+  const shotStep = steps.find(s => s.type === "duel" && s.data?.phase === "shot" && s.data?.won);
+  const dribbleStep = steps.find(s => s.type === "duel" && s.data?.phase === "dribble" && s.data?.won);
+  const midStep = steps.find(s => s.type === "duel" && s.data?.phase === "midfield" && s.data?.won);
+  const scorer = shotStep?.data?.att || dribbleStep?.data?.att || steps.find(s => s.type === "duel" && s.data?.won)?.data?.att || {
     name: "Форвард",
     archetype: "wall"
   };
-  const assister = steps.find(s => s.type === "duel" && s.data?.phase === "midfield")?.data?.att || null;
+  const assister = midStep?.data?.att && midStep.data.att.id !== scorer.id ? midStep.data.att : null;
   const min = event?.min || "?";
+  // Build vizEvents — always show pass if assister exists, then dribble/duel if exists, always end with shot
   const vizEvents = [];
-  if (assister && steps.some(s => s.type === "duel" && s.data?.phase === "dribble" && s.data?.won)) vizEvents.push({
+  if (assister) vizEvents.push({
     type: "pass",
     from: {
-      x: 40,
+      x: 38,
       y: 38
     },
     to: {
-      x: 68,
+      x: 66,
       y: 46
     },
     label: `Пас — ${assister.name}`,
     sub: `VIS ${assister.vis || "?"}`
   });
-  const dribbleStep = steps.find(s => s.type === "duel" && s.data?.phase === "dribble" && s.data?.won);
   if (dribbleStep) {
     const defName = dribbleStep.data?.def?.name || "Защитник";
     vizEvents.push({
       type: "duel",
       winner: {
         name: scorer.name,
-        x: 68,
+        x: 66,
         y: 46
       },
       loser: {
@@ -4329,24 +4333,30 @@ function GoalOfMatchScreen({
     vizEvents.push({
       type: "dribble",
       from: {
-        x: 68,
+        x: 66,
         y: 46
       },
       to: {
-        x: 81,
+        x: 82,
         y: 49
       },
       label: `Дриблинг — ${scorer.name}`,
       sub: "Врывается в штрафную"
     });
   }
-  const shotStep = steps.find(s => s.type === "duel" && s.data?.phase === "shot" && s.data?.won);
+  const shotFrom = dribbleStep ? {
+    x: 82,
+    y: 49
+  } : assister ? {
+    x: 66,
+    y: 46
+  } : {
+    x: 70,
+    y: 50
+  };
   vizEvents.push({
     type: "shot",
-    from: {
-      x: 81,
-      y: 49
-    },
+    from: shotFrom,
     to: {
       x: 95,
       y: 50
