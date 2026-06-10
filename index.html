@@ -2732,7 +2732,7 @@ function getNarr(phase, won) {
   const a = won ? p.win : p.lose;
   return a[Math.floor(Math.random() * a.length)];
 }
-function resolveDuel(att, def, phase, coach, midBonus, syn, fatigue = 0) {
+function resolveDuel(att, def, phase, coach, midBonus, syn, fatigue = 0, dSyn = null) {
   let aBase, dBase, aSK, dSK, label;
   if (phase === "midfield") {
     label = "⚙️ РОЗЫГРЫШ В ЦЕНТРЕ";
@@ -2768,7 +2768,8 @@ function resolveDuel(att, def, phase, coach, midBonus, syn, fatigue = 0) {
   const ab = AB[phase]?.att[att.archetype] || 0;
   const db = AB[phase]?.def[def.archetype] || 0;
   // Leader boost for DEFENDER — ovr_boost applies to defense too
-  const defSynBonus = syn ? syn.filter(s => s.unlocked && s.playerIds.includes(def.id) && s.effect.type === "ovr_boost").reduce((sum, s) => sum + s.effect.val, 0) : 0;
+  const _dSynSrc = dSyn || syn;
+  const defSynBonus = _dSynSrc ? _dSynSrc.filter(s => s.unlocked && s.playerIds.includes(def.id) && s.effect.type === "ovr_boost").reduce((sum, s) => sum + s.effect.val, 0) : 0;
   const afterArch = aBase + ab;
   const fatPen = Math.round(afterArch * fatigue);
   const dFinal = dBase + db + defSynBonus + 1;
@@ -3132,7 +3133,7 @@ function buildAttack(atkLU, defLU, aC, dC, aT, dT, aSyn, dSyn, ms) {
     }
   };
   // Phase 1
-  const d1 = resolveDuel(mf, dMf, "midfield", aC, 0, aSyn, 0);
+  const d1 = resolveDuel(mf, dMf, "midfield", aC, 0, aSyn, 0, dSyn);
   td(mf.id, dMf.id, d1.won);
   steps.push({
     type: "duel",
@@ -3218,7 +3219,7 @@ function buildAttack(atkLU, defLU, aC, dC, aT, dT, aSyn, dSyn, ms) {
         note: `${mf.name} врывается в штрафную — пропускает защитника!`
       }
     });
-    const btShot = resolveDuel(mf, gk, "shot", aC, midBonus, aSyn, 0);
+    const btShot = resolveDuel(mf, gk, "shot", aC, midBonus, aSyn, 0, dSyn);
     td(mf.id, gk.id, btShot.won);
     if (ms) {
       ms[mf.id].shots++;
@@ -3276,7 +3277,7 @@ function buildAttack(atkLU, defLU, aC, dC, aT, dT, aSyn, dSyn, ms) {
         synergy: true
       }
     });
-    const tShot = resolveDuel(fw, gk, "shot", aC, midBonus, aSyn, fat);
+    const tShot = resolveDuel(fw, gk, "shot", aC, midBonus, aSyn, fat, dSyn);
     td(fw.id, gk.id, tShot.won);
     if (ms) {
       ms[fw.id].shots++;
@@ -3307,7 +3308,7 @@ function buildAttack(atkLU, defLU, aC, dC, aT, dT, aSyn, dSyn, ms) {
   }
 
   // Phase 2
-  const d2 = resolveDuel(fw, dDf, "dribble", aC, midBonus, aSyn, fat);
+  const d2 = resolveDuel(fw, dDf, "dribble", aC, midBonus, aSyn, fat, dSyn);
   td(fw.id, dDf.id, d2.won);
   const d2s = {
     type: "duel",
@@ -3769,7 +3770,7 @@ function buildAttack(atkLU, defLU, aC, dC, aT, dT, aSyn, dSyn, ms) {
   }
   // Phase 3
   const hasPP = hasPerfectPass(aSyn) && mfAssistId != null;
-  const d3 = resolveDuel(fw, gk, "shot", aC, 0, hasPP ? aSyn : aSyn.filter(s => s.effect.type !== "perfect_pass_bonus"), fat);
+  const d3 = resolveDuel(fw, gk, "shot", aC, 0, hasPP ? aSyn : aSyn.filter(s => s.effect.type !== "perfect_pass_bonus"), fat, dSyn);
   td(fw.id, gk.id, d3.won);
   if (ms) {
     if (ms[fw.id]) ms[fw.id].shots++;
