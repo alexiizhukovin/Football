@@ -1617,7 +1617,7 @@ function applySyn(syn, player, phase) {
       labels.push(s.emoji + s.name + ":+" + e.val + "COM");
     }
     // Perfect pass: COM bonus in dribble (1FW vs DF) — see buildAttack for 2FW path
-    if (e.type === "perfect_pass_bonus" && e.target === player.archetype && phase === "dribble") {
+    if (e.type === "perfect_pass_bonus" && e.target === player.archetype && phase === "shot") {
       bonus += e.val;
       labels.push(s.emoji + s.name + ":+" + e.val + "COM к удару");
     }
