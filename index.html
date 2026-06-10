@@ -2766,7 +2766,9 @@ function resolveDuel(att, def, phase, coach, midBonus, syn, fatigue = 0, dSyn = 
   const db = AB[phase]?.def[def.archetype] || 0;
   // Leader boost for DEFENDER — ovr_boost applies to defense too
   const _dSynSrc = dSyn || syn;
-  const defSynBonus = _dSynSrc ? _dSynSrc.filter(s => s.unlocked && s.playerIds.includes(def.id) && s.effect.type === "ovr_boost").reduce((sum, s) => sum + s.effect.val, 0) : 0;
+  const _defSyns = _dSynSrc ? _dSynSrc.filter(s => s.unlocked && s.playerIds.includes(def.id) && s.effect.type === "ovr_boost") : [];
+  const defSynBonus = _defSyns.reduce((sum, s) => sum + s.effect.val, 0);
+  const defSynLabels = _defSyns.map(s => s.emoji + s.name + ":+" + s.effect.val);
   const afterArch = aBase + ab;
   const fatPen = Math.round(afterArch * fatigue);
   const dFinal = dBase + db + defSynBonus + 1;
@@ -2822,6 +2824,8 @@ function resolveDuel(att, def, phase, coach, midBonus, syn, fatigue = 0, dSyn = 
       statKey: dSK,
       base: dBase,
       defBonus: db,
+      synBonus: defSynBonus,
+      synLabels: defSynLabels,
       final: dFinal,
       roll: dRoll,
       oop: def._oop
@@ -5807,7 +5811,13 @@ function DuelCard({
       color: C.cyan,
       marginBottom: 2
     }
-  }, def.defBonus > 0 ? "+" : "", def.defBonus), stage >= 2 && /*#__PURE__*/React.createElement("div", {
+  }, def.defBonus > 0 ? "+" : "", def.defBonus), def.synBonus > 0 && stage >= 2 && /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 8,
+      color: C.gold,
+      marginBottom: 2
+    }
+  }, "✨ ", def.synLabels?.join(", ")), stage >= 2 && /*#__PURE__*/React.createElement("div", {
     style: {
       fontSize: 8,
       color: C.muted
