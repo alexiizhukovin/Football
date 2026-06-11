@@ -3928,6 +3928,7 @@ function simMatch(mySq, oppSq, myC, oppC, myT, oppT, myOvr, oppOvr, mySyn, defSy
     og = 0;
   const as = atkShare(myT, oppT, myOvr, oppOvr);
   let last = null;
+  let forceMyAttack = false;
   const ms = makeStats(mySq, oppSq);
   // Note: mySq/oppSq are the original squads for stats tracking (includes bench for future subs)
   // Build lineups once per match — slots assigned, bench ready for future subs
@@ -3936,7 +3937,10 @@ function simMatch(mySq, oppSq, myC, oppC, myT, oppT, myOvr, oppOvr, mySyn, defSy
   for (let mi = 0; mi < mins.length; mi++) {
     const min = mins[mi];
     let myAtk;
-    if (!last) myAtk = Math.random() < as;else if (last === "my") myAtk = Math.random() < Math.max(0.25, as - 0.22);else myAtk = Math.random() < Math.min(0.75, as + 0.22);
+    if (forceMyAttack) { myAtk = true; forceMyAttack = false; }
+    else if (!last) myAtk = Math.random() < as;
+    else if (last === "my") myAtk = Math.random() < Math.max(0.25, as - 0.22);
+    else myAtk = Math.random() < Math.min(0.75, as + 0.22);
     if (myAtk) {
       const res = buildAttack(myLU, oppLU, myC, oppC, myT, oppT, mySyn, defSyn, ms);
       if (res.goal) mg++;
@@ -3975,9 +3979,8 @@ function simMatch(mySq, oppSq, myC, oppC, myT, oppT, myOvr, oppOvr, mySyn, defSy
         oppTactic: oppT,
         minIdx: mi
       });
-      // Читающий центр: перехват → следующая атака моя
-      if (res.readingCounterAttack) last = "my";
-      else last = "opp";
+      if (res.readingCounterAttack) forceMyAttack = true;
+      last = "opp";
     }
   }
   return {
