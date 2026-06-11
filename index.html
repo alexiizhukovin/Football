@@ -3022,16 +3022,15 @@ function resolveCounterAttack(clearer, recvSquad, recvGk, ms, atkFWCount = 1, de
   const fw = recvFWs.length > 0 ? pick(recvFWs) : recvSquad.find(p => (p._slotPos || p.pos) !== "GK") || recvSquad[0];
   if (!fw) return null;
 
-  // а) Принял мяч? TEC + VIS — контроль первого касания
+  // а) Принял мяч? FW(controlBase, 20) vs DF_pressure(73 - numAdv*8, 20)
   const controlBase = Math.round(fw.tec * 0.60 + fw.vis * 0.40);
   const controlRoll = rnd(controlBase, 20);
-  // Численное преимущество в линии атаки vs защиты при выносе
-  // Больше FW чем DF → проще принять (порог ниже)
-  // Меньше FW чем DF → сложнее (порог выше)
   const numAdvantage = atkFWCount - defDFCount; // +1=легче, -1=тяжелее
-  const controlThreshold = 52 - numAdvantage * 9; // 43/52/61
-  const received = controlRoll >= controlThreshold;
+  const dfPressure = 73 - numAdvantage * 8; // 65(2v1) / 73(1v1) / 81(1v2)
+  const dfPressureRoll = rnd(dfPressure, 20);
+  const received = controlRoll > dfPressureRoll;
   const numAdvLabel = numAdvantage > 0 ? `${atkFWCount}v${defDFCount} — численное преимущество` : numAdvantage < 0 ? `${atkFWCount}v${defDFCount} — прессинг защитников` : `${atkFWCount}v${defDFCount} — равно`;
+  const controlThreshold = dfPressure; // kept for UI display
   if (ms && ms[fw.id]) ms[fw.id].duels++;
   if (!received) {
     return {
