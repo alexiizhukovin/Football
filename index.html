@@ -2957,21 +2957,23 @@ function fatRate(slotPos) {
 function getPlayerFat(ms, p, minIdx) {
   if (!ms || !ms[p.id]) return 0;
   const raw = ms[p.id].fatigue || 0;
-  // Накопительная по матчу: после 7й минуты (idx3) начинается
-  const matchPct = Math.max(0, (minIdx - 3) / 10); // 0 → 1 по ходу матча
-  const fatPenalty = raw * matchPct;
-  // Пerk: cold_blood снижает на 50%, stamina снижает накопление
+  // S-кривая: медленно→быстро→плато (k=1.2, t0=6)
+  const s = 1 / (1 + Math.exp(-1.2 * (minIdx - 6)));
+  const fatPenalty = raw * s;
+  // cold_blood: полностью убирает усталость
   const perk = p.perk;
-  const mult = perk === "cold_blood" ? 0.5 : 1;
-  return Math.min(0.25, fatPenalty * mult);
+  if (perk === "cold_blood") return 0;
+  return Math.min(0.30, fatPenalty);
 }
 // Accumulate fatigue after each attack phase
-function accumulateFat(ms, player, minIdx) {
+function accumulateFat(ms, player, minIdx, isPhysruk = false) {
   if (!ms || !ms[player.id]) return;
   const rate = fatRate(player._slotPos || player.pos);
   const perk = player.perk;
-  const accMult = perk === "stamina" ? 0.7 : 1;
-  ms[player.id].fatigue = (ms[player.id].fatigue || 0) + rate * accMult;
+  const accMult = perk === "stamina" ? 0.6 : 1;
+  // Физрук: убирает усталость команды (накопление ×0.33)
+  const physrukMult = isPhysruk ? 0.33 : 1;
+  ms[player.id].fatigue = (ms[player.id].fatigue || 0) + rate * accMult * physrukMult;
 }
 function playerScore(s) {
   return s.goals * 10 + s.assists * 6 + s.saves * 7 + s.tackles * 4 + s.interceptions * 5 + s.duelsWon * 2;
@@ -3130,7 +3132,10 @@ function buildAttack(atkLU, defLU, aC, dC, aT, dT, aSyn, dSyn, ms) {
     goal: false
   };
   const steps = [];
-  let fat = 0;
+  const isPhysruk = aC?.isPhysruk || false;
+  // Инициализируем усталость форварда из накопленной статистики матча
+  const minIdx = ms ? Object.values(ms).reduce((mx, s) => Math.max(mx, (s.shots||0)+(s.tackles||0)), 0) : 0;
+  let fat = fw ? getPlayerFat(ms, fw, Math.min(minIdx, 12)) : 0;
   const mm = getMidMult(aSyn);
   const td = (a, d, w) => {
     if (ms) {
@@ -3739,6 +3744,7 @@ function buildAttack(atkLU, defLU, aC, dC, aT, dT, aSyn, dSyn, ms) {
         };
       }
       fat += cv.fatiguePct;
+      if (fw && ms) accumulateFat(ms, fw, minIdx, isPhysruk);
       if (mf2 && aMFs.length >= 2 && Math.random() < 0.50) {
         const pr = resolvePass(fw, mf2, dDF2);
         steps.push({
