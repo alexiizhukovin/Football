@@ -3162,7 +3162,7 @@ function buildAttack(atkLU, defLU, aC, dC, aT, dT, aSyn, dSyn, ms) {
     if (dSyn.some(s => s.unlocked && s.effect.type === "reading_center" && (!s.effect.physruk || Math.random() < 0.5))) {
       steps.push({ type: "info", data: { label: "🎵🛡 ЧИТАЮЩИЙ ЦЕНТР! Перехват", note: "Метроном читает вынос — мяч возвращён!", synergy: true } });
       steps.push({ type: "end", data: { label: "❌ АТАКА ОСТАНОВЛЕНА", note: "Читающий центр прервал атаку" } });
-      return { steps, goal: false };
+      return { steps, goal: false, readingCounterAttack: true };
     }
     const mc = tac.coverChance + (aC?.coverBonus || 0);
     if (aMF2 && aMFs.length >= 2 && Math.random() < mc) {
@@ -3270,14 +3270,28 @@ function buildAttack(atkLU, defLU, aC, dC, aT, dT, aSyn, dSyn, ms) {
   }
   // Темп: после выигранного центра FW пропускает защитника
   if (d1.won && aSyn.some(s => s.unlocked && s.effect.type === "tempo_skip" && (!s.effect.physruk || Math.random() < 0.5))) {
+    // Защитник пытается догнать: шанс = clamp((df.pac - fw.pac + 10) / 30, 0, 0.5)
+    // Быстрый DF (pac≥fw.pac) даёт до 50% шанс догнать, медленный — 0%
+    const dfPac = dDf?.pac || 70;
+    const fwPac = fw?.pac || 80;
+    const catchChance = Math.max(0, Math.min(0.45, (dfPac - fwPac + 10) / 30));
+    const dfCaught = catchChance > 0 && Math.random() < catchChance;
     steps.push({
       type: "info",
       data: {
-        label: "🎵⚡ ТЕМП! Обход защитника",
-        note: `${fw.name} врывается напрямую к воротам!`,
+        label: dfCaught ? `⚡ Темп! Но ${dDf?.name || "защитник"} догнал (PAC ${dfPac} vs ${fwPac})` : "🎵⚡ ТЕМП! Обход защитника",
+        note: dfCaught ? `Разрыв по скорости всего ${fwPac - dfPac} — защитник успел!` : `${fw.name} врывается напрямую к воротам! (PAC gap +${fwPac - dfPac})`,
         synergy: true
       }
     });
+    if (dfCaught) {
+      // DF догнал — обычный дриблинг
+      const d2catch = resolveDuel(fw, dDf, "dribble", aC, midBonus, aSyn, fat, dSyn);
+      steps.push({ type: "duel", data: d2catch });
+      if (!d2catch.won) {
+        return { steps, goal: false };
+      }
+    }
     const tShot = resolveDuel(fw, gk, "shot", aC, midBonus, aSyn, fat, dSyn);
     td(fw.id, gk.id, tShot.won);
     if (ms) {
@@ -3961,7 +3975,9 @@ function simMatch(mySq, oppSq, myC, oppC, myT, oppT, myOvr, oppOvr, mySyn, defSy
         oppTactic: oppT,
         minIdx: mi
       });
-      last = "opp";
+      // Читающий центр: перехват → следующая атака моя
+      if (res.readingCounterAttack) last = "my";
+      else last = "opp";
     }
   }
   return {
