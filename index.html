@@ -3024,10 +3024,14 @@ function resolveCounterAttack(clearer, recvSquad, recvGk, ms, atkFWCount = 1, de
 
   // а) Принял мяч? FW(controlBase, 20) vs DF_pressure(73 - numAdv*8, 20)
   const controlBase = Math.round(fw.tec * 0.60 + fw.vis * 0.40);
-  const controlRoll = rnd(controlBase, 20);
   const numAdvantage = atkFWCount - defDFCount; // +1=легче, -1=тяжелее
   const dfPressure = 73 - numAdvantage * 8; // 65(2v1) / 73(1v1) / 81(1v2)
   const dfPressureRoll = rnd(dfPressure, 20);
+  // 2v2: берём лучший из двух касаний (выбор кому отдать)
+  const is2v2 = atkFWCount >= 2 && defDFCount >= 2;
+  const controlRoll = is2v2
+    ? Math.max(rnd(controlBase, 20), rnd(controlBase, 20))
+    : rnd(controlBase, 20);
   const received = controlRoll > dfPressureRoll;
   const numAdvLabel = numAdvantage > 0 ? `${atkFWCount}v${defDFCount} — численное преимущество` : numAdvantage < 0 ? `${atkFWCount}v${defDFCount} — прессинг защитников` : `${atkFWCount}v${defDFCount} — равно`;
   const controlThreshold = dfPressure; // kept for UI display
