@@ -2963,14 +2963,14 @@ function getPlayerFat(ms, p, minIdx) {
   // cold_blood: полностью убирает усталость
   const perk = p.perk;
   if (perk === "cold_blood") return 0;
-  return Math.min(0.30, fatPenalty);
+  return Math.min(0.20, fatPenalty);
 }
 // Accumulate fatigue after each attack phase
 function accumulateFat(ms, player, minIdx, isPhysruk = false) {
   if (!ms || !ms[player.id]) return;
   const rate = fatRate(player._slotPos || player.pos);
   const perk = player.perk;
-  const accMult = perk === "stamina" ? 0.6 : 1;
+  const accMult = perk === "stamina" ? 0.5 : 1;
   // Физрук: убирает усталость команды (накопление ×0.33)
   const physrukMult = isPhysruk ? 0.33 : 1;
   ms[player.id].fatigue = (ms[player.id].fatigue || 0) + rate * accMult * physrukMult;
