@@ -5550,7 +5550,11 @@ function DuelCard({
       color: "rgba(255,255,255,0.75)",
       fontStyle: "italic"
     }
-  }, att.arch?.emoji, " ", att.name, " \u2014 ", preMap[duel.phase] || "...")), midBonus > 0 && stage >= 1 && /*#__PURE__*/React.createElement("div", {
+  }, att.arch?.emoji, " ", att.name, " \u2014 ", preMap[duel.phase] || "...")), midMultNote && stage >= 1 && /*#__PURE__*/React.createElement("div", {
+    style: { textAlign: "center", marginBottom: 5 }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: { fontSize: 9, padding: "2px 10px", borderRadius: 20, background: "#a855f722", color: "#a855f7", fontWeight: "bold" }
+  }, midMultNote)), midBonus > 0 && stage >= 1 && /*#__PURE__*/React.createElement("div", {
     style: {
       textAlign: "center",
       marginBottom: 7
@@ -5835,7 +5839,9 @@ function DuelCard({
       color: C.gold,
       marginBottom: 2
     }
-  }, "✨ ", def.synLabels?.join(", ")), stage >= 2 && /*#__PURE__*/React.createElement("div", {
+  }, "✨ ", def.synLabels?.join(", ")), def.doubleRollNote && stage >= 2 && /*#__PURE__*/React.createElement("div", {
+    style: { fontSize: 8, color: "#06b6d4", marginBottom: 2 }
+  }, def.doubleRollNote), stage >= 2 && /*#__PURE__*/React.createElement("div", {
     style: {
       fontSize: 8,
       color: C.muted
