@@ -1601,7 +1601,8 @@ function computeSynergies(squad, coach) {
   const active = [];
   const isPhysruk = coach?.isPhysruk === true;
   for (const def of SYNDEF) {
-    const cm = def.needsCoach === null || coach?.spec === def.needsCoach || isPhysruk;
+    const coachUnlocks = coach?.unlocks || [];
+    const cm = def.needsCoach === null || coachUnlocks.includes(def.id) || isPhysruk;
     let ids = [];
     if (def.type === "pair") {
       if (def.archs[1] === "any") {
