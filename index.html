@@ -1361,6 +1361,7 @@ function getPlayerPerk(p) {
   if (arch === "sniper" && p.com >= 85) return "longshot_ace";
   if (arch === "sniper") return "cold_blood";
   // Стены с мощным ударом
+  if (p.pos === "GK") return "reflexes";
   if (arch === "wall" && p.phy >= 88) return "power_shot";
   if (arch === "wall" && p.phy >= 80) return "concrete";
   // Спринтеры
