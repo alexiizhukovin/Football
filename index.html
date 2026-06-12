@@ -1373,6 +1373,7 @@ function getPlayerPerk(p) {
   if (p.pos === "FW" && p.com >= 80) return "cold_blood";
   if (p.pos === "FW") return "stamina";
   if (p.pos === "DF") return "concrete";
+  if (p.pos === "GK") return "reflexes";
   return "stamina";
 }
 // Pre-assign perks to all players
@@ -2798,7 +2799,10 @@ function resolveDuel(att, def, phase, coach, midBonus, syn, fatigue = 0, dSyn = 
   if (dr) {
     aRoll = Math.max(aRoll, rnd(aFinal, aSpread));
   }
-  const dRoll = rnd(dFinal, dSpread);
+  // reflexes: GK бросает кубик дважды при ударе
+  const defDoubleRoll = phase === "shot" && def.perk === "reflexes";
+  let dRoll = rnd(dFinal, dSpread);
+  if (defDoubleRoll) dRoll = Math.max(dRoll, rnd(dFinal, dSpread));
   const won = aRoll > dRoll;
   return {
     phase,
