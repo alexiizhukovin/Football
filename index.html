@@ -1727,11 +1727,11 @@ const COACHES = [{
   spec: "tactical",
   lvl: 4,
   trait: "Тики-така",
-  traitDesc: "+20 к бонусу розыгрыша",
+  traitDesc: "Тики-така ×2 midBonus • +8 VIS полузащитникам",
   rare: "gold",
   coverBonus: 0.20,
   bonus: { stat: "vis", pos: "MF", val: 8, phase: "midfield" },
-  unlocks: ["perfect_pass", "tiki_taka"]
+  unlocks: ["perfect_pass", "tiki_taka", "power_shot"]
 }, {
   id: 4,
   name: "Лукас М.",
@@ -8444,7 +8444,8 @@ function CoachCard({
   onPick
 }) {
   const ps = computeSynergies(squad, c).filter(s => s.unlocked);
-  const allSyns = SYNDEF.filter(s => s.needsCoach === c.spec || s.needsCoach === null);
+  const _unlocks = c.unlocks || [];
+  const allSyns = SYNDEF.filter(s => _unlocks.includes(s.id) || s.needsCoach === null);
   const potSyns = allSyns.filter(s => !ps.find(a => a.id === s.id));
   return /*#__PURE__*/React.createElement("div", {
     onClick: () => onPick(c),
