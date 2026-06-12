@@ -2730,6 +2730,7 @@ function getNarr(phase, won) {
   return a[Math.floor(Math.random() * a.length)];
 }
 function resolveDuel(att, def, phase, coach, midBonus, syn, fatigue = 0, dSyn = null) {
+  if (!att || !def) return { won: false, att: {}, def: {}, label: "—", roll: 0 };
   let aBase, dBase, aSK, dSK, label;
   if (phase === "midfield") {
     label = "⚙️ РОЗЫГРЫШ В ЦЕНТРЕ";
@@ -3114,6 +3115,7 @@ function buildAttack(atkLU, defLU, aC, dC, aT, dT, aSyn, dSyn, ms) {
   // Pick from correct slots (already OOP-penalised if needed)
   const fw = pick(aFWs) || pick(aMFs) || atkLU.slots[0]?.player;
   const mf = pick(aMFs) || pick(aFWs) || atkLU.slots[0]?.player;
+  if (!fw || !mf) return { steps: [], goal: false };
   const dMf = pick(dMFs) || pick(dDFs) || defLU.slots[0]?.player;
   const dDf = pick(dDFs) || defLU.slots[0]?.player;
   // Second players for cover/pass
@@ -3284,7 +3286,7 @@ function buildAttack(atkLU, defLU, aC, dC, aT, dT, aSyn, dSyn, ms) {
         synergy: true
       }
     });
-    if (dfCaught) {
+    if (dfCaught && dDf) {
       // DF догнал — обычный дриблинг
       const d2catch = resolveDuel(fw, dDf, "dribble", aC, midBonus, aSyn, fat, dSyn);
       steps.push({ type: "duel", data: d2catch });
@@ -3942,7 +3944,7 @@ function simMatch(mySq, oppSq, myC, oppC, myT, oppT, myOvr, oppOvr, mySyn, defSy
     else if (last === "my") myAtk = Math.random() < Math.max(0.25, as - 0.22);
     else myAtk = Math.random() < Math.min(0.75, as + 0.22);
     if (myAtk) {
-      const res = buildAttack(myLU, oppLU, myC, oppC, myT, oppT, mySyn, defSyn, ms);
+      let res; try { res = buildAttack(myLU, oppLU, myC, oppC, myT, oppT, mySyn, defSyn, ms); } catch(e) { console.error("buildAttack my error:", e); res = { steps: [], goal: false }; }
       if (res.goal) mg++;
       if (res.counterGoal) og++; // вынос защитника/вратаря → гол соперника
       // Mark counter-goal event as opp team scoring (for visual)
@@ -3962,7 +3964,7 @@ function simMatch(mySq, oppSq, myC, oppC, myT, oppT, myOvr, oppOvr, mySyn, defSy
       });
       last = "my";
     } else {
-      const res = buildAttack(oppLU, myLU, oppC, myC, oppT, myT, defSyn, mySyn, ms);
+      let res; try { res = buildAttack(oppLU, myLU, oppC, myC, oppT, myT, defSyn, mySyn, ms); } catch(e) { console.error("buildAttack opp error:", e); res = { steps: [], goal: false }; }
       if (res.goal) og++;
       if (res.counterGoal) mg++; // вынос защитника соперника → гол моей команды
       const eff_goal = res.goal || (res.counterGoal ?? false);
