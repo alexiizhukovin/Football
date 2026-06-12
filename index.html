@@ -1705,10 +1705,10 @@ const COACHES = [{
   spec: "attack",
   lvl: 3,
   trait: "Прессинг",
-  traitDesc: "+10 COM форвардам при ударе",
+  traitDesc: "+7 COM форвардам при ударе",
   rare: "gold",
   coverBonus: 0.05,
-  bonus: { stat: "com", pos: "FW", val: 10, phase: "shot" },
+  bonus: { stat: "com", pos: "FW", val: 7, phase: "shot" },
   unlocks: ["double_sprint", "leader_boost", "golden_moment"]
 }, {
   id: 2,
@@ -3345,7 +3345,8 @@ function buildAttack(atkLU, defLU, aC, dC, aT, dT, aSyn, dSyn, ms) {
       ms[dDf.id].clearances++;
     }
     // ── ШТРАФНОЙ — защитник фолит при PAC gap ≥10 (28%) ──────────────────────
-    if (fw.pac - dDf.pac >= 10 && Math.random() < 0.28) {
+    const dribGap = Math.round(fw.tec * 0.6 + fw.pac * 0.4) - Math.round((dDf?.phy || 75) * 0.55 + (dDf?.vis || 70) * 0.45);
+    if (dribGap >= 5 && Math.random() < 0.28) {
       const fk = resolveFK(fw, gk);
       if (ms && ms[fw.id]) ms[fw.id].shots++;
       if (fk.goal && ms && ms[fw.id]) ms[fw.id].goals++;
