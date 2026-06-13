@@ -2838,6 +2838,7 @@ function resolveDuel(att, def, phase, coach, midBonus, syn, fatigue = 0, dSyn = 
       defBonus: db,
       synBonus: defSynBonus,
       synLabels: defSynLabels,
+      doubleRollNote: defDoubleRollNote || null,
       final: dFinal,
       roll: dRoll,
       oop: def._oop
@@ -3340,6 +3341,7 @@ function buildAttack(atkLU, defLU, aC, dC, aT, dT, aSyn, dSyn, ms) {
   if (mm > 1 && d1.won) d2s.midMultNote = `🎵 Тики-така x${mm}`;
   steps.push(d2s);
   if (!d2.won) {
+    if (!dDf) return { steps, goal: false };
     if (ms && ms[dDf.id]) {
       ms[dDf.id].tackles++;
       ms[dDf.id].clearances++;
@@ -5499,6 +5501,7 @@ function MatchStatsScreen({
 // ─── DUEL CARD ────────────────────────────────────────────────────────────────
 function DuelCard({
   duel,
+  midMultNote,
   isMyAttack,
   speed = 1,
   onDone
@@ -7782,6 +7785,7 @@ function EventBlock({
   }, event.steps.map((s, i) => i > stepIdx ? null : s.type === "duel" ? /*#__PURE__*/React.createElement(DuelCard, {
     key: i,
     duel: s.data,
+    midMultNote: s.midMultNote,
     isMyAttack: isMe,
     speed: speed,
     onDone: i === stepIdx && !allDone ? handleDone : undefined
@@ -9631,4 +9635,4 @@ function App() {
     onClick: () => setTab(t),
     style: tabStyle(t)
   }, l)))));
-}ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App));}catch(e){document.getElementById('root').innerHTML='<div style="color:red;padding:20px">ERROR: '+e.message+'</div>';}</script></body></html>
+}ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App));}catch(e){document.getElementById('root').innerHTML='<div style="color:red;padding:20px;font-size:12px"><b>ERROR:</b> '+e.message+'<br><pre style="font-size:10px;overflow:auto">'+e.stack+'</pre></div>';}</script></body></html>
