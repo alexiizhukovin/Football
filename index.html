@@ -3345,13 +3345,13 @@ function buildAttack(atkLU, defLU, aC, dC, aT, dT, aSyn, dSyn, ms) {
       ms[dDf.id].clearances++;
     }
     // ── ШТРАФНОЙ — защитник фолит при PAC gap ≥10 (28%) ──────────────────────
-    const dribGap = Math.round(fw.tec * 0.6 + fw.pac * 0.4) - Math.round((dDf?.phy || 75) * 0.55 + (dDf?.vis || 70) * 0.45);
+    const dribGap = dDf ? Math.round(fw.tec * 0.6 + fw.pac * 0.4) - Math.round(dDf.phy * 0.55 + dDf.vis * 0.45) : -99;
     if (dribGap >= 5 && Math.random() < 0.28) {
       const fk = resolveFK(fw, gk);
       if (ms && ms[fw.id]) ms[fw.id].shots++;
       if (fk.goal && ms && ms[fw.id]) ms[fw.id].goals++;
       if (!fk.goal && ms && ms[gk.id]) ms[gk.id].saves++;
-      steps.push({ type: "foul", data: { label: "🟨 ФОЛ! ШТРАФНОЙ", note: `${dDf.name} фолит на ${fw.name}`, pacGap: fw.pac - dDf.pac, shotRoll: fk.shotRoll, gkRoll: fk.gkRoll, goal: fk.goal } });
+      steps.push({ type: "foul", data: { label: "🟨 ФОЛ! ШТРАФНОЙ", note: `${dDf?.name || "Защитник"} фолит на ${fw?.name || "Форвард"}`, pacGap: fw.pac - dDf.pac, shotRoll: fk.shotRoll, gkRoll: fk.gkRoll, goal: fk.goal } });
       return { steps, goal: fk.goal };
     }
     // Вынос вперёд — базовый 35% или sharp_counter синергия
