@@ -3120,7 +3120,10 @@ function buildAttack(atkLU, defLU, aC, dC, aT, dT, aSyn, dSyn, ms) {
   const dDFs = lineupBySlot(defLU, "DF");
   const gk = lineupBySlot(defLU, "GK")[0] || defLU.slots[defLU.slots.length - 1]?.player;
   // Pick from correct slots (already OOP-penalised if needed)
-  const fw = pick(aFWs) || pick(aMFs) || atkLU.slots[0]?.player;
+  // Чередование форвардов — выбираем менее задействованного
+  const fw = aFWs.length >= 2 && ms
+    ? (aFWs.reduce((a, b) => ((ms[a?.id]?.shots||0) <= (ms[b?.id]?.shots||0) ? a : b)) || pick(aFWs))
+    : (pick(aFWs) || pick(aMFs) || atkLU.slots[0]?.player);
   const mf = pick(aMFs) || pick(aFWs) || atkLU.slots[0]?.player;
   if (!fw || !mf) return { steps: [], goal: false };
   const dMf = pick(dMFs) || pick(dDFs) || defLU.slots[0]?.player;
