@@ -1361,6 +1361,7 @@ function getPlayerPerk(p) {
   if (arch === "sniper" && p.com >= 85) return "longshot_ace";
   if (arch === "sniper") return "cold_blood";
   // Стены с мощным ударом
+  if (p.pos === "GK") return "reflexes";
   if (arch === "wall" && p.phy >= 88) return "power_shot";
   if (arch === "wall" && p.phy >= 80) return "concrete";
   // Спринтеры
@@ -1373,6 +1374,7 @@ function getPlayerPerk(p) {
   if (p.pos === "FW" && p.com >= 80) return "cold_blood";
   if (p.pos === "FW") return "stamina";
   if (p.pos === "DF") return "concrete";
+  if (p.pos === "GK") return "reflexes";
   return "stamina";
 }
 // Pre-assign perks to all players
@@ -1601,7 +1603,8 @@ function computeSynergies(squad, coach) {
   const active = [];
   const isPhysruk = coach?.isPhysruk === true;
   for (const def of SYNDEF) {
-    const cm = def.needsCoach === null || coach?.spec === def.needsCoach || isPhysruk;
+    const coachUnlocks = coach?.unlocks || [];
+    const cm = def.needsCoach === null || coachUnlocks.includes(def.id) || isPhysruk;
     let ids = [];
     if (def.type === "pair") {
       if (def.archs[1] === "any") {
@@ -1702,18 +1705,18 @@ const COACHES = [{
   spec: "attack",
   lvl: 3,
   trait: "Прессинг",
-  traitDesc: "+10 COM форвардам при ударе",
+  traitDesc: "+7 COM форвардам при ударе",
   rare: "gold",
   coverBonus: 0.05,
-  bonus: { stat: "com", pos: "FW", val: 10, phase: "shot" },
-  unlocks: ["double_sprint", "leader_boost"]
+  bonus: { stat: "com", pos: "FW", val: 7, phase: "shot" },
+  unlocks: ["double_sprint", "leader_boost", "golden_moment"]
 }, {
   id: 2,
   name: "Иванов С.",
   spec: "defense",
   lvl: 2,
   trait: "Автобус",
-  traitDesc: "+12 PHY вратарю",
+  traitDesc: "+6 PHY вратарю",
   rare: "silver",
   coverBonus: 0.15,
   bonus: { stat: "phy", pos: "GK", val: 6, phase: "shot" },
@@ -1724,11 +1727,11 @@ const COACHES = [{
   spec: "tactical",
   lvl: 4,
   trait: "Тики-така",
-  traitDesc: "+20 к бонусу розыгрыша",
+  traitDesc: "×2 бонус центра • +8 VIS полузащитникам",
   rare: "gold",
   coverBonus: 0.20,
   bonus: { stat: "vis", pos: "MF", val: 8, phase: "midfield" },
-  unlocks: ["perfect_pass", "tiki_taka"]
+  unlocks: ["perfect_pass", "tiki_taka", "power_shot"]
 }, {
   id: 4,
   name: "Лукас М.",
@@ -2797,7 +2800,10 @@ function resolveDuel(att, def, phase, coach, midBonus, syn, fatigue = 0, dSyn = 
   if (dr) {
     aRoll = Math.max(aRoll, rnd(aFinal, aSpread));
   }
-  const dRoll = rnd(dFinal, dSpread);
+  // reflexes: GK бросает кубик дважды при ударе
+  const defDoubleRoll = phase === "shot" && def.perk === "reflexes";
+  let dRoll = rnd(dFinal, dSpread);
+  if (defDoubleRoll) dRoll = Math.max(dRoll, rnd(dFinal, dSpread));
   const won = aRoll > dRoll;
   return {
     phase,
@@ -2832,6 +2838,7 @@ function resolveDuel(att, def, phase, coach, midBonus, syn, fatigue = 0, dSyn = 
       defBonus: db,
       synBonus: defSynBonus,
       synLabels: defSynLabels,
+      doubleRollNote: defDoubleRollNote || null,
       final: dFinal,
       roll: dRoll,
       oop: def._oop
@@ -3135,6 +3142,8 @@ function buildAttack(atkLU, defLU, aC, dC, aT, dT, aSyn, dSyn, ms) {
   };
   const steps = [];
   const isPhysruk = aC?.isPhysruk || false;
+  // Debug trace
+  try { console.log("buildAttack", {fw:fw?.name, mf:mf?.name, gk:gk?.name, dDf:dDf?.name, dMf:dMf?.name}); } catch(e) {}
   // Инициализируем усталость форварда из накопленной статистики матча
   const minIdx = ms ? Object.values(ms).reduce((mx, s) => Math.max(mx, (s.shots||0)+(s.tackles||0)), 0) : 0;
   let fat = fw ? getPlayerFat(ms, fw, Math.min(minIdx, 12)) : 0;
@@ -3334,17 +3343,19 @@ function buildAttack(atkLU, defLU, aC, dC, aT, dT, aSyn, dSyn, ms) {
   if (mm > 1 && d1.won) d2s.midMultNote = `🎵 Тики-така x${mm}`;
   steps.push(d2s);
   if (!d2.won) {
+    if (!dDf) return { steps, goal: false };
     if (ms && ms[dDf.id]) {
       ms[dDf.id].tackles++;
       ms[dDf.id].clearances++;
     }
     // ── ШТРАФНОЙ — защитник фолит при PAC gap ≥10 (28%) ──────────────────────
-    if (fw.pac - dDf.pac >= 10 && Math.random() < 0.28) {
+    const dribGap = dDf ? Math.round(fw.tec * 0.6 + fw.pac * 0.4) - Math.round(dDf.phy * 0.55 + dDf.vis * 0.45) : -99;
+    if (dribGap >= 5 && Math.random() < 0.28) {
       const fk = resolveFK(fw, gk);
       if (ms && ms[fw.id]) ms[fw.id].shots++;
       if (fk.goal && ms && ms[fw.id]) ms[fw.id].goals++;
       if (!fk.goal && ms && ms[gk.id]) ms[gk.id].saves++;
-      steps.push({ type: "foul", data: { label: "🟨 ФОЛ! ШТРАФНОЙ", note: `${dDf.name} фолит на ${fw.name}`, pacGap: fw.pac - dDf.pac, shotRoll: fk.shotRoll, gkRoll: fk.gkRoll, goal: fk.goal } });
+      steps.push({ type: "foul", data: { label: "🟨 ФОЛ! ШТРАФНОЙ", note: `${dDf?.name || "Защитник"} фолит на ${fw?.name || "Форвард"}`, pacGap: fw.pac - dDf.pac, shotRoll: fk.shotRoll, gkRoll: fk.gkRoll, goal: fk.goal } });
       return { steps, goal: fk.goal };
     }
     // Вынос вперёд — базовый 35% или sharp_counter синергия
@@ -3894,7 +3905,7 @@ function buildAttack(atkLU, defLU, aC, dC, aT, dT, aSyn, dSyn, ms) {
   // Normal shot result
   if (ms) {
     if (d3.won && ms[fw.id]) ms[fw.id].goals++;
-    if (!d3.won && ms[gk.id]) ms[gk.id].saves++;
+    if (!d3.won && gk && ms[gk.id]) ms[gk.id].saves++;
     if (d3.won && mfAssistId && ms[mfAssistId] && mfAssistId !== fw.id) ms[mfAssistId].assists++;
   }
 
@@ -4428,13 +4439,16 @@ function GoalOfMatchScreen({
   const steps = event?.steps || [];
   // Find scorer — try multiple sources
   const shotStep = steps.find(s => s.type === "duel" && s.data?.phase === "shot" && s.data?.won);
+  const longShotStep = steps.find(s => s.type === "longshot" && s.data?.goal);
   const dribbleStep = steps.find(s => s.type === "duel" && s.data?.phase === "dribble" && s.data?.won);
   const midStep = steps.find(s => s.type === "duel" && s.data?.phase === "midfield" && s.data?.won);
-  const scorer = shotStep?.data?.att || dribbleStep?.data?.att || steps.find(s => s.type === "duel" && s.data?.won)?.data?.att || {
+  const passStep = steps.find(s => s.type === "pass" && s.data?.success !== false);
+  const perfectPassStep = steps.find(s => s.type === "perfect_pass_cross");
+  const scorer = shotStep?.data?.att || longShotStep?.data?.shooter && {name: longShotStep.data.shooter, archetype: longShotStep.data.shooterArch?.id || "metronome"} || dribbleStep?.data?.att || steps.find(s => s.type === "duel" && s.data?.won)?.data?.att || {
     name: "Форвард",
     archetype: "wall"
   };
-  const assister = midStep?.data?.att && midStep.data.att.id !== scorer.id ? midStep.data.att : null;
+  const assister = midStep?.data?.att && midStep.data.att.id !== scorer?.id ? midStep.data.att : null;
   const min = event?.min || "?";
   // Build vizEvents — always show pass if assister exists, then dribble/duel if exists, always end with shot
   const vizEvents = [];
@@ -4454,29 +4468,32 @@ function GoalOfMatchScreen({
     label: `Центр — ${midStep2.data.att?.name || "МФ"}`,
     sub: `VIS ${midStep2.data.att?.base || "?"}`
   });
-  // 2. Пас к форварду
-  if (assister && midStep2) vizEvents.push({
+  // 2. Пас к форварду (обычный или breakthrough)
+  if (passStep) vizEvents.push({
     type: "pass",
-    from: {
-      x: 38,
-      y: 38
-    },
-    to: {
-      x: 66,
-      y: 46
-    },
+    from: { x: 38, y: 38 },
+    to: { x: 66, y: 46 },
+    label: passStep.data?.note || "Пас вперёд",
+    sub: passStep.data?.label || "🎯 Обход защитника"
+  });
+  else if (perfectPassStep) vizEvents.push({
+    type: "pass",
+    from: { x: 38, y: 38 },
+    to: { x: 66, y: 46 },
+    label: perfectPassStep.data?.note || "Идеальная передача",
+    sub: "📐 Идеальный пас"
+  });
+  else if (assister && midStep2) vizEvents.push({
+    type: "pass",
+    from: { x: 38, y: 38 },
+    to: { x: 66, y: 46 },
     label: `Пас — ${assister.name}`,
     sub: `VIS ${assister.vis || "?"}`
-  });else if (assister) vizEvents.push({
+  });
+  else if (assister) vizEvents.push({
     type: "pass",
-    from: {
-      x: 38,
-      y: 38
-    },
-    to: {
-      x: 66,
-      y: 46
-    },
+    from: { x: 38, y: 38 },
+    to: { x: 66, y: 46 },
     label: `Пас — ${assister.name}`,
     sub: `VIS ${assister.vis || "?"}`
   });
@@ -5492,6 +5509,7 @@ function MatchStatsScreen({
 // ─── DUEL CARD ────────────────────────────────────────────────────────────────
 function DuelCard({
   duel,
+  midMultNote,
   isMyAttack,
   speed = 1,
   onDone
@@ -5510,7 +5528,8 @@ function DuelCard({
     midBonus,
     isShot,
     narr
-  } = duel;
+  } = duel || {};
+  if (!att || !def) return null;
   const attCol = isMyAttack ? C.green : C.red;
   const defCol = isMyAttack ? C.red : C.green;
   const preMap = {
@@ -5545,7 +5564,11 @@ function DuelCard({
       color: "rgba(255,255,255,0.75)",
       fontStyle: "italic"
     }
-  }, att.arch?.emoji, " ", att.name, " \u2014 ", preMap[duel.phase] || "...")), midBonus > 0 && stage >= 1 && /*#__PURE__*/React.createElement("div", {
+  }, att.arch?.emoji, " ", att.name, " \u2014 ", preMap[duel.phase] || "...")), midMultNote && stage >= 1 && /*#__PURE__*/React.createElement("div", {
+    style: { textAlign: "center", marginBottom: 5 }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: { fontSize: 9, padding: "2px 10px", borderRadius: 20, background: "#a855f722", color: "#a855f7", fontWeight: "bold" }
+  }, midMultNote)), midBonus > 0 && stage >= 1 && /*#__PURE__*/React.createElement("div", {
     style: {
       textAlign: "center",
       marginBottom: 7
@@ -5830,7 +5853,9 @@ function DuelCard({
       color: C.gold,
       marginBottom: 2
     }
-  }, "✨ ", def.synLabels?.join(", ")), stage >= 2 && /*#__PURE__*/React.createElement("div", {
+  }, "✨ ", def.synLabels?.join(", ")), def.doubleRollNote && stage >= 2 && /*#__PURE__*/React.createElement("div", {
+    style: { fontSize: 8, color: "#06b6d4", marginBottom: 2 }
+  }, def.doubleRollNote), stage >= 2 && /*#__PURE__*/React.createElement("div", {
     style: {
       fontSize: 8,
       color: C.muted
@@ -7769,6 +7794,7 @@ function EventBlock({
   }, event.steps.map((s, i) => i > stepIdx ? null : s.type === "duel" ? /*#__PURE__*/React.createElement(DuelCard, {
     key: i,
     duel: s.data,
+    midMultNote: s.midMultNote,
     isMyAttack: isMe,
     speed: speed,
     onDone: i === stepIdx && !allDone ? handleDone : undefined
@@ -8432,7 +8458,8 @@ function CoachCard({
   onPick
 }) {
   const ps = computeSynergies(squad, c).filter(s => s.unlocked);
-  const allSyns = SYNDEF.filter(s => s.needsCoach === c.spec || s.needsCoach === null);
+  const _unlocks = c.unlocks || [];
+  const allSyns = SYNDEF.filter(s => _unlocks.includes(s.id) || s.needsCoach === null);
   const potSyns = allSyns.filter(s => !ps.find(a => a.id === s.id));
   return /*#__PURE__*/React.createElement("div", {
     onClick: () => onPick(c),
