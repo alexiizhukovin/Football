@@ -3142,6 +3142,8 @@ function buildAttack(atkLU, defLU, aC, dC, aT, dT, aSyn, dSyn, ms) {
   };
   const steps = [];
   const isPhysruk = aC?.isPhysruk || false;
+  // Debug trace
+  try { console.log("buildAttack", {fw:fw?.name, mf:mf?.name, gk:gk?.name, dDf:dDf?.name, dMf:dMf?.name}); } catch(e) {}
   // Инициализируем усталость форварда из накопленной статистики матча
   const minIdx = ms ? Object.values(ms).reduce((mx, s) => Math.max(mx, (s.shots||0)+(s.tackles||0)), 0) : 0;
   let fat = fw ? getPlayerFat(ms, fw, Math.min(minIdx, 12)) : 0;
@@ -3903,7 +3905,7 @@ function buildAttack(atkLU, defLU, aC, dC, aT, dT, aSyn, dSyn, ms) {
   // Normal shot result
   if (ms) {
     if (d3.won && ms[fw.id]) ms[fw.id].goals++;
-    if (!d3.won && ms[gk.id]) ms[gk.id].saves++;
+    if (!d3.won && gk && ms[gk.id]) ms[gk.id].saves++;
     if (d3.won && mfAssistId && ms[mfAssistId] && mfAssistId !== fw.id) ms[mfAssistId].assists++;
   }
 
