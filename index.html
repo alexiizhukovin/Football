@@ -1601,7 +1601,8 @@ function computeSynergies(squad, coach) {
   const active = [];
   const isPhysruk = coach?.isPhysruk === true;
   for (const def of SYNDEF) {
-    const cm = def.needsCoach === null || coach?.spec === def.needsCoach || isPhysruk;
+    const _cu = coach?.unlocks || [];
+    const cm = def.needsCoach === null || _cu.includes(def.id) || isPhysruk;
     let ids = [];
     if (def.type === "pair") {
       if (def.archs[1] === "any") {
@@ -8387,7 +8388,8 @@ function CoachCard({
   onPick
 }) {
   const ps = computeSynergies(squad, c).filter(s => s.unlocked);
-  const allSyns = SYNDEF.filter(s => s.needsCoach === c.spec || s.needsCoach === null);
+  const _ul = c.unlocks || [];
+  const allSyns = SYNDEF.filter(s => _ul.includes(s.id) || s.needsCoach === null);
   const potSyns = allSyns.filter(s => !ps.find(a => a.id === s.id));
   return /*#__PURE__*/React.createElement("div", {
     onClick: () => onPick(c),
