@@ -2737,11 +2737,12 @@ function resolveDuel(att, def, phase, coach, midBonus, syn, fatigue = 0, dSyn = 
     label = "⚙️ РОЗЫГРЫШ В ЦЕНТРЕ";
     aSK = "vis";
     dSK = "vis";
-    aBase = Math.round(att.vis * .5 + att.tec * .5);
-    // Cap: защитник не может иметь VIS/TEC более чем на 10 выше атакующего
-    const _capVis = Math.min(def.vis, att.vis + 10);
-    const _capTec = Math.min(def.tec, att.tec + 10);
-    dBase = Math.round(_capVis * .5 + _capTec * .5);
+    const _rawA = Math.round(att.vis * .5 + att.tec * .5);
+    const _rawD = Math.round(def.vis * .5 + def.tec * .5);
+    const _CAP = 12;
+    // Двусторонний cap: сильный не давит слабого полностью
+    aBase = Math.min(_rawA, _rawD + _CAP);
+    dBase = Math.max(_rawD, _rawA - _CAP);
   } else if (phase === "dribble") {
     label = "💥 ЕДИНОБОРСТВО С ЗАЩИТНИКОМ";
     if (att.archetype === "sprinter") {
@@ -2792,7 +2793,7 @@ function resolveDuel(att, def, phase, coach, midBonus, syn, fatigue = 0, dSyn = 
     dr = synR.doubleRoll;
   const midAdd = phase === "dribble" ? midBonus : 0;
   const aFinal = afterArch - fatPen + cBonus + midAdd + synBonus;
-  const aSpread = phase === "midfield" ? 30 : phase === "shot" ? 40 : 24;
+  const aSpread = phase === "shot" ? 40 : 24;
   const dSpread = phase === "shot" ? 28 : 22;
   let aRoll = rnd(aFinal, aSpread);
   if (dr) {
