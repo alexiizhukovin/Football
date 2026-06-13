@@ -1361,7 +1361,6 @@ function getPlayerPerk(p) {
   if (arch === "sniper" && p.com >= 85) return "longshot_ace";
   if (arch === "sniper") return "cold_blood";
   // Стены с мощным ударом
-  if (p.pos === "GK") return "reflexes";
   if (arch === "wall" && p.phy >= 88) return "power_shot";
   if (arch === "wall" && p.phy >= 80) return "concrete";
   // Спринтеры
@@ -1374,7 +1373,6 @@ function getPlayerPerk(p) {
   if (p.pos === "FW" && p.com >= 80) return "cold_blood";
   if (p.pos === "FW") return "stamina";
   if (p.pos === "DF") return "concrete";
-  if (p.pos === "GK") return "reflexes";
   return "stamina";
 }
 // Pre-assign perks to all players
@@ -1603,8 +1601,7 @@ function computeSynergies(squad, coach) {
   const active = [];
   const isPhysruk = coach?.isPhysruk === true;
   for (const def of SYNDEF) {
-    const coachUnlocks = coach?.unlocks || [];
-    const cm = def.needsCoach === null || coachUnlocks.includes(def.id) || isPhysruk;
+    const cm = def.needsCoach === null || coach?.spec === def.needsCoach || isPhysruk;
     let ids = [];
     if (def.type === "pair") {
       if (def.archs[1] === "any") {
@@ -1705,18 +1702,18 @@ const COACHES = [{
   spec: "attack",
   lvl: 3,
   trait: "Прессинг",
-  traitDesc: "+7 COM форвардам при ударе",
+  traitDesc: "+10 COM форвардам при ударе",
   rare: "gold",
   coverBonus: 0.05,
-  bonus: { stat: "com", pos: "FW", val: 7, phase: "shot" },
-  unlocks: ["double_sprint", "leader_boost", "golden_moment"]
+  bonus: { stat: "com", pos: "FW", val: 10, phase: "shot" },
+  unlocks: ["double_sprint", "leader_boost"]
 }, {
   id: 2,
   name: "Иванов С.",
   spec: "defense",
   lvl: 2,
   trait: "Автобус",
-  traitDesc: "+6 PHY вратарю",
+  traitDesc: "+12 PHY вратарю",
   rare: "silver",
   coverBonus: 0.15,
   bonus: { stat: "phy", pos: "GK", val: 6, phase: "shot" },
@@ -1727,11 +1724,11 @@ const COACHES = [{
   spec: "tactical",
   lvl: 4,
   trait: "Тики-така",
-  traitDesc: "×2 бонус центра • +8 VIS полузащитникам",
+  traitDesc: "+20 к бонусу розыгрыша",
   rare: "gold",
   coverBonus: 0.20,
   bonus: { stat: "vis", pos: "MF", val: 8, phase: "midfield" },
-  unlocks: ["perfect_pass", "tiki_taka", "power_shot"]
+  unlocks: ["perfect_pass", "tiki_taka"]
 }, {
   id: 4,
   name: "Лукас М.",
@@ -2800,10 +2797,7 @@ function resolveDuel(att, def, phase, coach, midBonus, syn, fatigue = 0, dSyn = 
   if (dr) {
     aRoll = Math.max(aRoll, rnd(aFinal, aSpread));
   }
-  // reflexes: GK бросает кубик дважды при ударе
-  const defDoubleRoll = phase === "shot" && def.perk === "reflexes";
-  let dRoll = rnd(dFinal, dSpread);
-  if (defDoubleRoll) dRoll = Math.max(dRoll, rnd(dFinal, dSpread));
+  const dRoll = rnd(dFinal, dSpread);
   const won = aRoll > dRoll;
   return {
     phase,
@@ -2838,7 +2832,6 @@ function resolveDuel(att, def, phase, coach, midBonus, syn, fatigue = 0, dSyn = 
       defBonus: db,
       synBonus: defSynBonus,
       synLabels: defSynLabels,
-      doubleRollNote: defDoubleRollNote || null,
       final: dFinal,
       roll: dRoll,
       oop: def._oop
@@ -2928,13 +2921,23 @@ function resolveLongShot(fw, gk, syn) {
 function resolveFK(fw, gk) {
   const a = Math.round(fw.com * .7 + fw.tec * .3);
   const d = Math.round(gk.phy * .5 + gk.com * .5);
-  const aR = rnd(a, 10),
-    dR = rnd(d, 8);
-  return {
-    shotRoll: aR,
-    gkRoll: dR,
-    goal: aR > dR
-  };
+  const aR = rnd(a, 10), dR = rnd(d, 8);
+  const goal = aR > dR;
+  // Тип нарушения
+  const foulTypes = [
+    { type: "подкат", prob: 0.35, emoji: "🦵" },
+    { type: "толчок", prob: 0.28, emoji: "👊" },
+    { type: "задержка", prob: 0.22, emoji: "✋" },
+    { type: "рука", prob: 0.15, emoji: "🤚" }
+  ];
+  let cum = 0, foulType = foulTypes[0];
+  const r = Math.random();
+  for (const ft of foulTypes) { cum += ft.prob; if (r < cum) { foulType = ft; break; } }
+  // Тип удара
+  const shotType = goal
+    ? (Math.random() < 0.65 ? "прямой" : "навес")
+    : (Math.random() < 0.55 ? "мимо" : "вратарь");
+  return { shotRoll: aR, gkRoll: dR, goal, foulType, shotType };
 }
 function makeStats(sq, opp) {
   const st = {};
@@ -3120,9 +3123,13 @@ function buildAttack(atkLU, defLU, aC, dC, aT, dT, aSyn, dSyn, ms) {
   const dDFs = lineupBySlot(defLU, "DF");
   const gk = lineupBySlot(defLU, "GK")[0] || defLU.slots[defLU.slots.length - 1]?.player;
   // Pick from correct slots (already OOP-penalised if needed)
-  // Чередование форвардов — выбираем менее задействованного
+  // Чередование FW: при 2 форвардах берём менее задействованного
   const fw = aFWs.length >= 2 && ms
-    ? (aFWs.reduce((a, b) => ((ms[a?.id]?.shots||0) <= (ms[b?.id]?.shots||0) ? a : b)) || pick(aFWs))
+    ? aFWs.reduce((a, b) => {
+        const sa = ms[a?.id]?.shots || 0;
+        const sb = ms[b?.id]?.shots || 0;
+        return sa <= sb ? a : b;
+      })
     : (pick(aFWs) || pick(aMFs) || atkLU.slots[0]?.player);
   const mf = pick(aMFs) || pick(aFWs) || atkLU.slots[0]?.player;
   if (!fw || !mf) return { steps: [], goal: false };
@@ -3145,8 +3152,6 @@ function buildAttack(atkLU, defLU, aC, dC, aT, dT, aSyn, dSyn, ms) {
   };
   const steps = [];
   const isPhysruk = aC?.isPhysruk || false;
-  // Debug trace
-  try { console.log("buildAttack", {fw:fw?.name, mf:mf?.name, gk:gk?.name, dDf:dDf?.name, dMf:dMf?.name}); } catch(e) {}
   // Инициализируем усталость форварда из накопленной статистики матча
   const minIdx = ms ? Object.values(ms).reduce((mx, s) => Math.max(mx, (s.shots||0)+(s.tackles||0)), 0) : 0;
   let fat = fw ? getPlayerFat(ms, fw, Math.min(minIdx, 12)) : 0;
@@ -3346,19 +3351,17 @@ function buildAttack(atkLU, defLU, aC, dC, aT, dT, aSyn, dSyn, ms) {
   if (mm > 1 && d1.won) d2s.midMultNote = `🎵 Тики-така x${mm}`;
   steps.push(d2s);
   if (!d2.won) {
-    if (!dDf) return { steps, goal: false };
     if (ms && ms[dDf.id]) {
       ms[dDf.id].tackles++;
       ms[dDf.id].clearances++;
     }
     // ── ШТРАФНОЙ — защитник фолит при PAC gap ≥10 (28%) ──────────────────────
-    const dribGap = dDf ? Math.round(fw.tec * 0.6 + fw.pac * 0.4) - Math.round(dDf.phy * 0.55 + dDf.vis * 0.45) : -99;
-    if (dribGap >= 5 && Math.random() < 0.28) {
+    if (fw.pac - dDf.pac >= 10 && Math.random() < 0.28) {
       const fk = resolveFK(fw, gk);
       if (ms && ms[fw.id]) ms[fw.id].shots++;
       if (fk.goal && ms && ms[fw.id]) ms[fw.id].goals++;
       if (!fk.goal && ms && ms[gk.id]) ms[gk.id].saves++;
-      steps.push({ type: "foul", data: { label: "🟨 ФОЛ! ШТРАФНОЙ", note: `${dDf?.name || "Защитник"} фолит на ${fw?.name || "Форвард"}`, pacGap: fw.pac - dDf.pac, shotRoll: fk.shotRoll, gkRoll: fk.gkRoll, goal: fk.goal } });
+      steps.push({ type: "foul", data: { label: "🟨 ФОЛ! ШТРАФНОЙ", note: `${dDf?.name || "Защитник"} фолит на ${fw?.name || "Форвард"}`, shooter: fw?.name, pacGap: fw?.pac - (dDf?.pac || 70), shotRoll: fk.shotRoll, gkRoll: fk.gkRoll, goal: fk.goal, foulType: fk.foulType, shotType: fk.shotType } });
       return { steps, goal: fk.goal };
     }
     // Вынос вперёд — базовый 35% или sharp_counter синергия
@@ -4442,16 +4445,13 @@ function GoalOfMatchScreen({
   const steps = event?.steps || [];
   // Find scorer — try multiple sources
   const shotStep = steps.find(s => s.type === "duel" && s.data?.phase === "shot" && s.data?.won);
-  const longShotStep = steps.find(s => s.type === "longshot" && s.data?.goal);
   const dribbleStep = steps.find(s => s.type === "duel" && s.data?.phase === "dribble" && s.data?.won);
   const midStep = steps.find(s => s.type === "duel" && s.data?.phase === "midfield" && s.data?.won);
-  const passStep = steps.find(s => s.type === "pass" && s.data?.success !== false);
-  const perfectPassStep = steps.find(s => s.type === "perfect_pass_cross");
-  const scorer = shotStep?.data?.att || longShotStep?.data?.shooter && {name: longShotStep.data.shooter, archetype: longShotStep.data.shooterArch?.id || "metronome"} || dribbleStep?.data?.att || steps.find(s => s.type === "duel" && s.data?.won)?.data?.att || {
+  const scorer = shotStep?.data?.att || dribbleStep?.data?.att || steps.find(s => s.type === "duel" && s.data?.won)?.data?.att || {
     name: "Форвард",
     archetype: "wall"
   };
-  const assister = midStep?.data?.att && midStep.data.att.id !== scorer?.id ? midStep.data.att : null;
+  const assister = midStep?.data?.att && midStep.data.att.id !== scorer.id ? midStep.data.att : null;
   const min = event?.min || "?";
   // Build vizEvents — always show pass if assister exists, then dribble/duel if exists, always end with shot
   const vizEvents = [];
@@ -4471,32 +4471,29 @@ function GoalOfMatchScreen({
     label: `Центр — ${midStep2.data.att?.name || "МФ"}`,
     sub: `VIS ${midStep2.data.att?.base || "?"}`
   });
-  // 2. Пас к форварду (обычный или breakthrough)
-  if (passStep) vizEvents.push({
+  // 2. Пас к форварду
+  if (assister && midStep2) vizEvents.push({
     type: "pass",
-    from: { x: 38, y: 38 },
-    to: { x: 66, y: 46 },
-    label: passStep.data?.note || "Пас вперёд",
-    sub: passStep.data?.label || "🎯 Обход защитника"
-  });
-  else if (perfectPassStep) vizEvents.push({
-    type: "pass",
-    from: { x: 38, y: 38 },
-    to: { x: 66, y: 46 },
-    label: perfectPassStep.data?.note || "Идеальная передача",
-    sub: "📐 Идеальный пас"
-  });
-  else if (assister && midStep2) vizEvents.push({
-    type: "pass",
-    from: { x: 38, y: 38 },
-    to: { x: 66, y: 46 },
+    from: {
+      x: 38,
+      y: 38
+    },
+    to: {
+      x: 66,
+      y: 46
+    },
     label: `Пас — ${assister.name}`,
     sub: `VIS ${assister.vis || "?"}`
-  });
-  else if (assister) vizEvents.push({
+  });else if (assister) vizEvents.push({
     type: "pass",
-    from: { x: 38, y: 38 },
-    to: { x: 66, y: 46 },
+    from: {
+      x: 38,
+      y: 38
+    },
+    to: {
+      x: 66,
+      y: 46
+    },
     label: `Пас — ${assister.name}`,
     sub: `VIS ${assister.vis || "?"}`
   });
@@ -5512,7 +5509,6 @@ function MatchStatsScreen({
 // ─── DUEL CARD ────────────────────────────────────────────────────────────────
 function DuelCard({
   duel,
-  midMultNote,
   isMyAttack,
   speed = 1,
   onDone
@@ -5567,11 +5563,7 @@ function DuelCard({
       color: "rgba(255,255,255,0.75)",
       fontStyle: "italic"
     }
-  }, att.arch?.emoji, " ", att.name, " \u2014 ", preMap[duel.phase] || "...")), midMultNote && stage >= 1 && /*#__PURE__*/React.createElement("div", {
-    style: { textAlign: "center", marginBottom: 5 }
-  }, /*#__PURE__*/React.createElement("span", {
-    style: { fontSize: 9, padding: "2px 10px", borderRadius: 20, background: "#a855f722", color: "#a855f7", fontWeight: "bold" }
-  }, midMultNote)), midBonus > 0 && stage >= 1 && /*#__PURE__*/React.createElement("div", {
+  }, att.arch?.emoji, " ", att.name, " \u2014 ", preMap[duel.phase] || "...")), midBonus > 0 && stage >= 1 && /*#__PURE__*/React.createElement("div", {
     style: {
       textAlign: "center",
       marginBottom: 7
@@ -5856,9 +5848,7 @@ function DuelCard({
       color: C.gold,
       marginBottom: 2
     }
-  }, "✨ ", def.synLabels?.join(", ")), def.doubleRollNote && stage >= 2 && /*#__PURE__*/React.createElement("div", {
-    style: { fontSize: 8, color: "#06b6d4", marginBottom: 2 }
-  }, def.doubleRollNote), stage >= 2 && /*#__PURE__*/React.createElement("div", {
+  }, "✨ ", def.synLabels?.join(", ")), stage >= 2 && /*#__PURE__*/React.createElement("div", {
     style: {
       fontSize: 8,
       color: C.muted
@@ -6658,130 +6648,67 @@ function FoulCard({
   speed = 1,
   onDone
 }) {
-  const [st, setSt] = useState(0);
-  const B = 850 / speed;
+  const [stage, setStage] = useState(0);
+  const B = 750 / speed;
   useEffect(() => {
-    const ts = [setTimeout(() => setSt(1), B * .05), setTimeout(() => setSt(2), B * .7), setTimeout(() => setSt(3), B * 1.5), setTimeout(() => onDone && onDone(), B * 2.4)];
+    const ts = [
+      setTimeout(() => setStage(1), B * 0.05),
+      setTimeout(() => setStage(2), B * 0.5),
+      setTimeout(() => setStage(3), B * 1.0),
+      setTimeout(() => setStage(4), B * 1.8),
+      setTimeout(() => onDone && onDone(), B * 2.8)
+    ];
     return () => ts.forEach(clearTimeout);
   }, []);
-  const {
-    note,
-    pacGap,
-    shotRoll,
-    gkRoll,
-    goal
-  } = data;
-  const col = isMyAttack ? goal ? C.green : C.red : goal ? C.red : C.green;
+  const d = data || {};
+  const ft = d.foulType || { type: "подкат", emoji: "🦵" };
+  const st = d.shotType || "прямой";
+  const tc = isMyAttack ? C.green : C.red;
+  const stLabel = { прямой: "Удар прямо в угол", навес: "Навес в штрафную", мимо: "Мяч летит мимо", вратарь: "Вратарь в прыжке" }[st] || st;
+  const stEmoji = { прямой: "🎯", навес: "🌀", мимо: "💨", вратарь: "🧤" }[st] || "⚽";
   return /*#__PURE__*/React.createElement("div", {
-    style: {
-      opacity: st >= 1 ? 1 : 0,
-      transition: `opacity ${B * .2}ms`,
-      marginBottom: 10
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      borderRadius: 12,
-      overflow: "hidden",
-      border: `2px solid rgba(251,191,36,0.5)`,
-      boxShadow: "0 0 16px rgba(251,191,36,0.2)"
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      padding: "12px 16px",
-      background: "rgba(251,191,36,0.12)",
-      textAlign: "center",
-      borderBottom: "1px solid rgba(251,191,36,0.2)"
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 28,
-      marginBottom: 4
-    }
-  }, "\uD83D\uDFE8"), /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 13,
-      fontWeight: 900,
-      color: C.gold
-    }
-  }, "\u0424\u041E\u041B! \u0428\u0422\u0420\u0410\u0424\u041D\u041E\u0419"), /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 9,
-      color: "rgba(255,255,255,0.5)",
-      marginTop: 2
-    }
-  }, note), pacGap && /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 9,
-      color: C.muted,
-      marginTop: 1
-    }
-  }, "PAC gap: +", pacGap)), st >= 2 && /*#__PURE__*/React.createElement("div", {
-    style: {
-      padding: "14px 16px",
-      background: "rgba(0,0,0,0.4)",
-      textAlign: "center"
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 11,
-      color: C.muted,
-      marginBottom: 10
-    }
-  }, "\uD83E\uDD45 \u0423\u0434\u0430\u0440 \u0441\u043E \u0448\u0442\u0440\u0430\u0444\u043D\u043E\u0433\u043E..."), st >= 3 && /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      justifyContent: "center",
-      alignItems: "center",
-      gap: 16
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      textAlign: "center"
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 8,
-      color: C.muted,
-      marginBottom: 2
-    }
-  }, "\u0423\u0414\u0410\u0420"), /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 26,
-      fontWeight: 900,
-      color: goal ? C.green : C.red
-    }
-  }, "\uD83C\uDFB2 ", shotRoll)), /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 28
-    }
-  }, goal ? "⚽" : "🧤"), /*#__PURE__*/React.createElement("div", {
-    style: {
-      textAlign: "center"
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 8,
-      color: C.muted,
-      marginBottom: 2
-    }
-  }, "GK"), /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 26,
-      fontWeight: 900,
-      color: !goal ? C.green : C.red
-    }
-  }, "\uD83C\uDFB2 ", gkRoll))), st >= 3 && /*#__PURE__*/React.createElement("div", {
-    style: {
-      marginTop: 10,
-      fontSize: 13,
-      fontWeight: 900,
-      color: col,
-      animation: "popIn 0.4s ease"
-    }
-  }, goal ? isMyAttack ? "⚽ ГОЛ СО ШТРАФНОГО!" : "💀 Гол со штрафного..." : isMyAttack ? "🧤 Штрафной отражён!" : "👊 Устояли!"))));
+    style: { borderRadius: 12, overflow: "hidden", marginBottom: 8, border: `1px solid ${C.gold}55` }
+  },
+    stage >= 1 && /*#__PURE__*/React.createElement("div", {
+      style: { background: "#78350f33", padding: "10px 14px", borderBottom: `1px solid ${C.gold}33` }
+    },
+      /*#__PURE__*/React.createElement("div", { style: { fontSize: 11, color: C.gold, fontWeight: 700, letterSpacing: "0.1em", marginBottom: 4 } }, "🟨 ФОЛ! ШТРАФНОЙ"),
+      /*#__PURE__*/React.createElement("div", { style: { fontSize: 13, color: "#fff", fontWeight: 600 } }, ft.emoji, " ", d.note || "Фол"),
+      /*#__PURE__*/React.createElement("div", { style: { fontSize: 9, color: C.muted, marginTop: 3 } }, "Нарушение: ", ft.type, d.pacGap > 0 ? ` • разрыв скоростей +${d.pacGap}` : "")
+    ),
+    stage >= 2 && /*#__PURE__*/React.createElement("div", {
+      style: { background: C.surf, padding: "10px 14px", borderBottom: `1px solid ${C.bord}`, display: "flex", alignItems: "center", gap: 10 }
+    },
+      /*#__PURE__*/React.createElement("div", { style: { fontSize: 20 } }, stEmoji),
+      /*#__PURE__*/React.createElement("div", null,
+        /*#__PURE__*/React.createElement("div", { style: { fontSize: 9, color: C.muted } }, "БЬЁТ ШТРАФНОЙ"),
+        /*#__PURE__*/React.createElement("div", { style: { fontSize: 13, color: tc, fontWeight: 700 } }, d.shooter || "Форвард"),
+        /*#__PURE__*/React.createElement("div", { style: { fontSize: 10, color: C.muted } }, stLabel)
+      )
+    ),
+    stage >= 3 && /*#__PURE__*/React.createElement("div", {
+      style: { background: C.surf, padding: "10px 14px", display: "flex", justifyContent: "space-around", alignItems: "center", borderBottom: `1px solid ${C.bord}` }
+    },
+      /*#__PURE__*/React.createElement("div", { style: { textAlign: "center" } },
+        /*#__PURE__*/React.createElement("div", { style: { fontSize: 9, color: C.muted } }, "УДАР"),
+        /*#__PURE__*/React.createElement("div", { style: { fontSize: 26, fontWeight: 900, color: tc } }, d.shotRoll || "?")
+      ),
+      /*#__PURE__*/React.createElement("div", { style: { fontSize: 18 } }, "🎲"),
+      /*#__PURE__*/React.createElement("div", { style: { textAlign: "center" } },
+        /*#__PURE__*/React.createElement("div", { style: { fontSize: 9, color: C.muted } }, "GK"),
+        /*#__PURE__*/React.createElement("div", { style: { fontSize: 26, fontWeight: 900, color: C.red } }, d.gkRoll || "?")
+      )
+    ),
+    stage >= 4 && /*#__PURE__*/React.createElement("div", {
+      style: { padding: "14px", textAlign: "center", background: d.goal ? "rgba(34,197,94,0.15)" : "rgba(239,68,68,0.08)" }
+    },
+      /*#__PURE__*/React.createElement("div", { style: { fontSize: 28, marginBottom: 4 } }, d.goal ? (st === "навес" ? "🌀⚽" : "⚽") : (st === "мимо" ? "💨" : "🧤")),
+      /*#__PURE__*/React.createElement("div", { style: { fontSize: 15, fontWeight: 900, color: d.goal ? C.green : C.muted } },
+        d.goal ? (st === "навес" ? "ГОЛ С НАВЕСА!" : "ГОЛ СО ШТРАФНОГО!") : (st === "мимо" ? "МИМО!" : "ВРАТАРЬ ВЗЯЛ!")
+      )
+    )
+  );
 }
-
-// ─── WOODWORK CARD ────────────────────────────────────────────────────────────
 function WoodworkCard({
   data,
   isMyAttack,
@@ -7797,7 +7724,6 @@ function EventBlock({
   }, event.steps.map((s, i) => i > stepIdx ? null : s.type === "duel" ? /*#__PURE__*/React.createElement(DuelCard, {
     key: i,
     duel: s.data,
-    midMultNote: s.midMultNote,
     isMyAttack: isMe,
     speed: speed,
     onDone: i === stepIdx && !allDone ? handleDone : undefined
@@ -8461,8 +8387,7 @@ function CoachCard({
   onPick
 }) {
   const ps = computeSynergies(squad, c).filter(s => s.unlocked);
-  const _unlocks = c.unlocks || [];
-  const allSyns = SYNDEF.filter(s => _unlocks.includes(s.id) || s.needsCoach === null);
+  const allSyns = SYNDEF.filter(s => s.needsCoach === c.spec || s.needsCoach === null);
   const potSyns = allSyns.filter(s => !ps.find(a => a.id === s.id));
   return /*#__PURE__*/React.createElement("div", {
     onClick: () => onPick(c),
