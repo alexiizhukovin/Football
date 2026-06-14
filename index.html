@@ -3291,7 +3291,8 @@ function buildAttack(atkLU, defLU, aC, dC, aT, dT, aSyn, dSyn, ms) {
     };
   }
   // Темп: после выигранного центра FW пропускает защитника
-  if (d1.won && aSyn.some(s => s.unlocked && s.effect.type === "tempo_skip" && (!s.effect.physruk || Math.random() < 0.5))) {
+  const tempoSyn = aSyn.find(s => s.unlocked && s.effect.type === "tempo_skip" && s.playerIds.includes(fw?.id) && (!s.effect.physruk || Math.random() < 0.5));
+  if (d1.won && tempoSyn) {
     // Защитник пытается догнать: шанс = clamp((df.pac - fw.pac + 10) / 30, 0, 0.5)
     // Быстрый DF (pac≥fw.pac) даёт до 50% шанс догнать, медленный — 0%
     const dfPac = dDf?.pac || 70;
