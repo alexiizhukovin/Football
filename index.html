@@ -3212,7 +3212,7 @@ function buildAttack(atkLU, defLU, aC, dC, aT, dT, aSyn, dSyn, ms) {
       steps.push({
         type: "info",
         data: {
-          label: "🔄 МЯЧ ВОЗВРАЩЁН",
+          label: "🔄 МЯЧ ВОЗВРАЩЁН", icon: "🔄",
           note: "Атака продолжается"
         }
       });
@@ -3238,7 +3238,7 @@ function buildAttack(atkLU, defLU, aC, dC, aT, dT, aSyn, dSyn, ms) {
     steps.push({
       type: "info",
       data: {
-        label: "💥 ПРОРЫВ ПОЛУЗАЩИТНИКА",
+        label: "💥 ПРОРЫВ ПОЛУЗАЩИТНИКА", icon: "💥",
         note: `${mf.name} врывается в штрафную — пропускает защитника!`
       }
     });
@@ -3315,6 +3315,7 @@ function buildAttack(atkLU, defLU, aC, dC, aT, dT, aSyn, dSyn, ms) {
         data: {
           label: `🏃 ${dDf?.name || "Защитник"} догнал! Темп прерван`,
           note: `PHY ${dDf?.phy || "?"} — шанс был ${Math.round(((dDf?.phy||75)-60)/120*100)}%`,
+          icon: "🏃",
           synergy: false
         }
       });
@@ -3614,7 +3615,7 @@ function buildAttack(atkLU, defLU, aC, dC, aT, dT, aSyn, dSyn, ms) {
         steps.push({
           type: "info",
           data: {
-            label: "🧤 ПЕРЕХВАТ! Вратарь-перехватчик",
+            label: "🧤 ПЕРЕХВАТ! Вратарь-перехватчик", icon: "🧤",
             note: `${gk.name} вышел из ворот и поймал мяч`
           }
         });
@@ -3695,7 +3696,7 @@ function buildAttack(atkLU, defLU, aC, dC, aT, dT, aSyn, dSyn, ms) {
         steps.push({
           type: "info",
           data: {
-            label: "🧱 Железный занавес сработал! Вратарь перекрыл зону",
+            label: "🧱 Железный занавес сработал! Вратарь перекрыл зону", icon: "🧱",
             note: `${gk.name} вышел как второй защитник`
           }
         });
@@ -3783,7 +3784,7 @@ function buildAttack(atkLU, defLU, aC, dC, aT, dT, aSyn, dSyn, ms) {
         steps.push({
           type: "info",
           data: {
-            label: "🦵 ПОДСТРАХОВКА СРАБОТАЛА",
+            label: "🦵 ПОДСТРАХОВКА СРАБОТАЛА", icon: "🦵",
             note: `${dDF2.name} догнал и выбил мяч`
           }
         });
