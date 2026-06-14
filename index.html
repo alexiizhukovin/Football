@@ -6655,11 +6655,11 @@ function FoulCard({
   const B = 750 / speed;
   useEffect(() => {
     const ts = [
-      setTimeout(() => setStage(1), B * 0.05),
-      setTimeout(() => setStage(2), B * 0.5),
-      setTimeout(() => setStage(3), B * 1.0),
-      setTimeout(() => setStage(4), B * 1.8),
-      setTimeout(() => onDone && onDone(), B * 2.8)
+      setTimeout(() => setStage(1), B * 0.05),   // нарушение
+      setTimeout(() => setStage(2), B * 0.7),    // кто бьёт
+      setTimeout(() => setStage(3), B * 1.5),    // разбег + кубик
+      setTimeout(() => setStage(4), B * 2.4),    // результат
+      setTimeout(() => onDone && onDone(), B * 3.5)
     ];
     return () => ts.forEach(clearTimeout);
   }, []);
