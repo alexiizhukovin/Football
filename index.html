@@ -3182,7 +3182,7 @@ function buildAttack(atkLU, defLU, aC, dC, aT, dT, aSyn, dSyn, ms) {
     if (ms && ms[dMf.id]) ms[dMf.id].tackles++;
     // Читающий центр: перехват до cover и выноса
     if (dSyn.some(s => s.unlocked && s.effect.type === "reading_center" && (!s.effect.physruk || Math.random() < 0.5))) {
-      steps.push({ type: "info", data: { label: "🎵🛡 ЧИТАЮЩИЙ ЦЕНТР! Перехват", note: "Метроном читает вынос — мяч возвращён!", synergy: true } });
+      steps.push({ type: "info", data: { label: "🎵🛡 ЧИТАЮЩИЙ ЦЕНТР! Перехват", note: "Метроном читает вынос — мяч возвращён!", icon: "🎵🛡", synergy: true } });
       steps.push({ type: "end", data: { label: "❌ АТАКА ОСТАНОВЛЕНА", note: "Читающий центр прервал атаку" } });
       return { steps, goal: false, readingCounterAttack: true };
     }
