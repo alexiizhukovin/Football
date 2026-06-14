@@ -3300,14 +3300,25 @@ function buildAttack(atkLU, defLU, aC, dC, aT, dT, aSyn, dSyn, ms) {
     // Catch: зависит от PHY защитника, не PAC форварда
     const catchChance = Math.max(0.05, Math.min(0.40, ((dDf?.phy || 75) - 60) / 120));
     const dfCaught = catchChance > 0 && Math.random() < catchChance;
-    steps.push({
-      type: "info",
-      data: {
-        label: dfCaught ? `⚡ Темп! Но ${dDf?.name || "защитник"} догнал (PHY ${dDf?.phy || "?"})` : "🎵⚡ ТЕМП! Обход защитника",
-        note: dfCaught ? `${dDf?.name || "Защитник"} физически настиг — шанс был ${Math.round(((dDf?.phy||75)-60)/120*100)}%` : `${fw.name} врывается напрямую к воротам!`,
-        synergy: true
-      }
-    });
+    if (!dfCaught) {
+      steps.push({
+        type: "info",
+        data: {
+          label: "🎵⚡ ТЕМП! Обход защитника",
+          note: `${fw.name} врывается напрямую к воротам!`,
+          synergy: true
+        }
+      });
+    } else {
+      steps.push({
+        type: "info",
+        data: {
+          label: `🏃 ${dDf?.name || "Защитник"} догнал! Темп прерван`,
+          note: `PHY ${dDf?.phy || "?"} — шанс был ${Math.round(((dDf?.phy||75)-60)/120*100)}%`,
+          synergy: false
+        }
+      });
+    }
     if (dfCaught && dDf) {
       // DF догнал — обычный дриблинг
       const d2catch = resolveDuel(fw, dDf, "dribble", aC, midBonus, aSyn, fat, dSyn);
