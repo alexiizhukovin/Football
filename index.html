@@ -3156,7 +3156,8 @@ function buildAttack(atkLU, defLU, aC, dC, aT, dT, aSyn, dSyn, ms) {
   const isPhysruk = aC?.isPhysruk || false;
   // Инициализируем усталость форварда из накопленной статистики матча
   const minIdx = ms ? Object.values(ms).reduce((mx, s) => Math.max(mx, (s.shots||0)+(s.tackles||0)), 0) : 0;
-  let fat = fw ? getPlayerFat(ms, fw, Math.min(minIdx, 12)) : 0;
+  if (!fw || !gk) return { steps: [], goal: false };
+  let fat = getPlayerFat(ms, fw, Math.min(minIdx, 12));
   const mm = getMidMult(aSyn);
   const td = (a, d, w) => {
     if (ms) {
@@ -3195,7 +3196,7 @@ function buildAttack(atkLU, defLU, aC, dC, aT, dT, aSyn, dSyn, ms) {
           isDefending: false
         }
       });
-      if (!cv.stopped) {
+      if (cv.stopped) {
         steps.push({
           type: "end",
           data: {
