@@ -3209,13 +3209,7 @@ function buildAttack(atkLU, defLU, aC, dC, aT, dT, aSyn, dSyn, ms) {
           goal: false
         };
       }
-      steps.push({
-        type: "info",
-        data: {
-          label: "🔄 МЯЧ ВОЗВРАЩЁН", icon: "🔄",
-          note: "Атака продолжается"
-        }
-      });
+      // Атака продолжается — CoverCard уже показал "Прошли! Но устали"
     } else {
       steps.push({
         type: "end",
