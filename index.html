@@ -9111,7 +9111,7 @@ function MatchScreen({
       flex: 1,
       height: 6,
       borderRadius: 3,
-      background: i < seasonIdx ? seasonResults[i]?.won ? "rgba(34,197,94,0.85)" : seasonResults[i]?.score && seasonResults[i].score.split(":")[0] === seasonResults[i].score.split(":")[1] ? "rgba(251,191,36,0.85)" : "rgba(239,68,68,0.75)" : i === seasonIdx ? "rgba(120,120,120,0.45)" : "rgba(255,255,255,0.08)"
+      background: i < seasonIdx ? seasonResults[i]?.won ? "rgba(34,197,94,0.85)" : seasonResults[i]?.draw ? "rgba(251,191,36,0.85)" : "rgba(239,68,68,0.75)" : i === seasonIdx ? "rgba(120,120,120,0.45)" : "rgba(255,255,255,0.08)"
     }
   }))), /*#__PURE__*/React.createElement("div", {
     style: {
@@ -9123,9 +9123,9 @@ function MatchScreen({
     key: i,
     style: {
       fontSize: 8,
-      color: r.won ? C.green : r.score && r.score.split(":")[0] === r.score.split(":")[1] ? C.gold : C.red
+      color: r.won ? C.green : r.draw ? C.gold : C.red
     }
-  }, r.won ? "✓" : r.score && r.score.split(":")[0] === r.score.split(":")[1] ? "=" : "✗", " ", r.oppName, " ", r.score)))), /*#__PURE__*/React.createElement("div", {
+  }, r.won ? "✓" : r.draw ? "=" : "✗", " ", r.oppName, " ", r.score)))), /*#__PURE__*/React.createElement("div", {
     style: {
       fontSize: 9,
       color: C.muted,
@@ -9340,10 +9340,12 @@ function MatchScreen({
     onClick: () => {
       if (setSeasonResults) setSeasonResults(prev => [...prev, {
         won: result.myGoals > result.oppGoals,
+        draw: result.myGoals === result.oppGoals,
         score: `${result.myGoals}:${result.oppGoals}`,
         oppName: opp?.name || ""
       }]);
-      if (setSeasonIdx && seasonResults.length === seasonIdx) setSeasonIdx(i => i + 1);
+      // Всегда переходим к следующему сопернику (не зависим от async state)
+      if (setSeasonIdx) setSeasonIdx(i => Math.min(i + 1, SEASON_OPPONENTS.length));
       setMatchDone(false);
       setShowStats(false);
       setActiveIdx(-1);
