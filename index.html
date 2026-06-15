@@ -3276,9 +3276,25 @@ function buildAttack(atkLU, defLU, aC, dC, aT, dT, aSyn, dSyn, ms) {
       data: {
         label: "💫 ДАЛЬНИЙ УДАР ИЗ ЦЕНТРА",
         note: `${mf.name} бьёт из полузащиты`,
-        ...ls
+        ...ls,
+        shooter: mf.name
       }
     });
+    if (ls.woodwork) {
+      const rebBase = Math.round(mf.com * 0.52 + mf.tec * 0.33 + mf.vis * 0.15) - 10;
+      const rebRoll = rnd(Math.max(rebBase, 28), 16);
+      const gkRebRoll = rnd(Math.round(gk.phy * 0.78 + gk.vis * 0.18), 16);
+      const rebGoal = rebRoll > gkRebRoll;
+      if (rebGoal && ms && ms[mf.id]) ms[mf.id].goals++;
+      if (!rebGoal && ms && ms[gk.id]) ms[gk.id].saves++;
+      steps.push({ type: "woodwork", data: {
+        isPost: Math.random() < 0.67,
+        fw: { name: mf.name, pos: mf.pos, arch: ARCH[mf.archetype], com: mf.com, tec: mf.tec, archetype: mf.archetype },
+        gk: { name: gk.name, pos: gk.pos },
+        rebound: { base: rebBase, roll: rebRoll, gkRoll: gkRebRoll, goal: rebGoal }
+      }});
+      return { steps, goal: rebGoal };
+    }
     return {
       steps,
       goal: ls.goal
@@ -3557,9 +3573,24 @@ function buildAttack(atkLU, defLU, aC, dC, aT, dT, aSyn, dSyn, ms) {
       data: {
         label: "💫 ДАЛЬНИЙ УДАР",
         note: `${fw.name} бьёт, обходя второго защитника`,
-        ...ls
+        ...ls, shooter: fw.name
       }
     });
+    if (ls.woodwork) {
+      const rebBase = Math.round(fw.com * 0.52 + fw.tec * 0.33 + fw.vis * 0.15) - 10;
+      const rebRoll = rnd(Math.max(rebBase, 28), 16);
+      const gkRebRoll = rnd(Math.round(gk.phy * 0.78 + gk.vis * 0.18), 16);
+      const rebGoal = rebRoll > gkRebRoll;
+      if (rebGoal && ms && ms[fw.id]) ms[fw.id].goals++;
+      if (!rebGoal && ms && ms[gk.id]) ms[gk.id].saves++;
+      steps.push({ type: "woodwork", data: {
+        isPost: Math.random() < 0.67,
+        fw: { name: fw.name, pos: fw.pos, arch: ARCH[fw.archetype], com: fw.com, tec: fw.tec, archetype: fw.archetype },
+        gk: { name: gk.name, pos: gk.pos },
+        rebound: { base: rebBase, roll: rebRoll, gkRoll: gkRebRoll, goal: rebGoal }
+      }});
+      return { steps, goal: rebGoal };
+    }
     return {
       steps,
       goal: ls.goal
@@ -3823,9 +3854,24 @@ function buildAttack(atkLU, defLU, aC, dC, aT, dT, aSyn, dSyn, ms) {
           data: {
             label: "💫 УДАР ПОСЛЕ ПАСА",
             note: `${mf2.name} бьёт из-за штрафной`,
-            ...ls
+            ...ls, shooter: mf2.name
           }
         });
+        if (ls.woodwork) {
+          const rebBase = Math.round(mf2.com * 0.52 + mf2.tec * 0.33 + mf2.vis * 0.15) - 10;
+          const rebRoll = rnd(Math.max(rebBase, 28), 16);
+          const gkRebRoll = rnd(Math.round(gk.phy * 0.78 + gk.vis * 0.18), 16);
+          const rebGoal = rebRoll > gkRebRoll;
+          if (rebGoal && ms && ms[mf2.id]) ms[mf2.id].goals++;
+          if (!rebGoal && ms && ms[gk.id]) ms[gk.id].saves++;
+          steps.push({ type: "woodwork", data: {
+            isPost: Math.random() < 0.67,
+            fw: { name: mf2.name, pos: mf2.pos, arch: ARCH[mf2.archetype], com: mf2.com, tec: mf2.tec, archetype: mf2.archetype },
+            gk: { name: gk.name, pos: gk.pos },
+            rebound: { base: rebBase, roll: rebRoll, gkRoll: gkRebRoll, goal: rebGoal }
+          }});
+          return { steps, goal: rebGoal };
+        }
         return {
           steps,
           goal: ls.goal
@@ -3841,9 +3887,24 @@ function buildAttack(atkLU, defLU, aC, dC, aT, dT, aSyn, dSyn, ms) {
           data: {
             label: "💫 ДАЛЬНИЙ УДАР",
             note: `${fw.name} решает бить сразу`,
-            ...ls
+            ...ls, shooter: fw.name
           }
         });
+        if (ls.woodwork) {
+          const rebBase = Math.round(fw.com * 0.52 + fw.tec * 0.33 + fw.vis * 0.15) - 10;
+          const rebRoll = rnd(Math.max(rebBase, 28), 16);
+          const gkRebRoll = rnd(Math.round(gk.phy * 0.78 + gk.vis * 0.18), 16);
+          const rebGoal = rebRoll > gkRebRoll;
+          if (rebGoal && ms && ms[fw.id]) ms[fw.id].goals++;
+          if (!rebGoal && ms && ms[gk.id]) ms[gk.id].saves++;
+          steps.push({ type: "woodwork", data: {
+            isPost: Math.random() < 0.67,
+            fw: { name: fw.name, pos: fw.pos, arch: ARCH[fw.archetype], com: fw.com, tec: fw.tec, archetype: fw.archetype },
+            gk: { name: gk.name, pos: gk.pos },
+            rebound: { base: rebBase, roll: rebRoll, gkRoll: gkRebRoll, goal: rebGoal }
+          }});
+          return { steps, goal: rebGoal };
+        }
         return {
           steps,
           goal: ls.goal
