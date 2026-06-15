@@ -2801,6 +2801,7 @@ function resolveDuel(att, def, phase, coach, midBonus, syn, fatigue = 0, dSyn = 
   }
   const dRoll = rnd(dFinal, dSpread);
   const won = aRoll > dRoll;
+  const tieBreak = aRoll === dRoll;
   return {
     phase,
     label,
@@ -2823,7 +2824,6 @@ function resolveDuel(att, def, phase, coach, midBonus, syn, fatigue = 0, dSyn = 
       dr,
       final: aFinal,
       roll: aRoll,
-      tieBreak,
       oop: att._oop
     },
     def: {
@@ -3181,10 +3181,17 @@ function buildAttack(atkLU, defLU, aC, dC, aT, dT, aSyn, dSyn, ms) {
     data: d1
   });
   if (!d1.won) {
+    if (d1.tieBreak && fw && gk) {
+      const fk = resolveFK(fw, gk);
+      if (ms && ms[fw.id]) ms[fw.id].shots++;
+      if (fk.goal && ms && ms[fw.id]) ms[fw.id].goals++;
+      steps.push({ type: "foul", data: { label: "🟨 РАВНЫЙ СЧЁТ — ШТРАФНОЙ!", note: `Ничья в центре — ${fw.name} бьёт штрафной`, shooter: fw.name, pacGap: 5, shotRoll: fk.shotRoll, gkRoll: fk.gkRoll, goal: fk.goal, foulType: { type: "равная борьба", emoji: "⚖️" }, shotType: fk.shotType } });
+      return { steps, goal: fk.goal };
+    }
     if (ms && ms[dMf.id]) ms[dMf.id].tackles++;
     // Читающий центр: перехват до cover и выноса
     if (dSyn.some(s => s.unlocked && s.effect.type === "reading_center" && (!s.effect.physruk || Math.random() < 0.5))) {
-      steps.push({ type: "info", data: { label: "🎵🛡 ЧИТАЮЩИЙ ЦЕНТР! Перехват", note: "Метроном читает вынос — мяч возвращён!", icon: "🎵🛡", synergy: true } });
+      steps.push({ type: "info", data: { label: "🎵🛡 ЧИТАЮЩИЙ ЦЕНТР! Перехват", note: "Метроном читает вынос — мяч возвращён!", synergy: true } });
       steps.push({ type: "end", data: { label: "❌ АТАКА ОСТАНОВЛЕНА", note: "Читающий центр прервал атаку" } });
       return { steps, goal: false, readingCounterAttack: true };
     }
@@ -3211,7 +3218,13 @@ function buildAttack(atkLU, defLU, aC, dC, aT, dT, aSyn, dSyn, ms) {
           goal: false
         };
       }
-      // Атака продолжается — CoverCard уже показал "Прошли! Но устали"
+      steps.push({
+        type: "info",
+        data: {
+          label: "🔄 МЯЧ ВОЗВРАЩЁН",
+          note: "Атака продолжается"
+        }
+      });
     } else {
       steps.push({
         type: "end",
@@ -3234,7 +3247,7 @@ function buildAttack(atkLU, defLU, aC, dC, aT, dT, aSyn, dSyn, ms) {
     steps.push({
       type: "info",
       data: {
-        label: "💥 ПРОРЫВ ПОЛУЗАЩИТНИКА", icon: "💥",
+        label: "💥 ПРОРЫВ ПОЛУЗАЩИТНИКА",
         note: `${mf.name} врывается в штрафную — пропускает защитника!`
       }
     });
@@ -3278,33 +3291,16 @@ function buildAttack(atkLU, defLU, aC, dC, aT, dT, aSyn, dSyn, ms) {
       data: {
         label: "💫 ДАЛЬНИЙ УДАР ИЗ ЦЕНТРА",
         note: `${mf.name} бьёт из полузащиты`,
-        ...ls,
-        shooter: mf.name
+        ...ls
       }
     });
-    if (ls.woodwork) {
-      const rebBase = Math.round(mf.com * 0.52 + mf.tec * 0.33 + mf.vis * 0.15) - 10;
-      const rebRoll = rnd(Math.max(rebBase, 28), 16);
-      const gkRebRoll = rnd(Math.round(gk.phy * 0.78 + gk.vis * 0.18), 16);
-      const rebGoal = rebRoll > gkRebRoll;
-      if (rebGoal && ms && ms[mf.id]) ms[mf.id].goals++;
-      if (!rebGoal && ms && ms[gk.id]) ms[gk.id].saves++;
-      steps.push({ type: "woodwork", data: {
-        isPost: Math.random() < 0.67,
-        fw: { name: mf.name, pos: mf.pos, arch: ARCH[mf.archetype], com: mf.com, tec: mf.tec, archetype: mf.archetype },
-        gk: { name: gk.name, pos: gk.pos },
-        rebound: { base: rebBase, roll: rebRoll, gkRoll: gkRebRoll, goal: rebGoal }
-      }});
-      return { steps, goal: rebGoal };
-    }
     return {
       steps,
       goal: ls.goal
     };
   }
   // Темп: после выигранного центра FW пропускает защитника
-  const tempoSyn = aSyn.find(s => s.unlocked && s.effect.type === "tempo_skip" && s.playerIds.includes(fw?.id) && (!s.effect.physruk || Math.random() < 0.5));
-  if (d1.won && tempoSyn) {
+  if (d1.won && aSyn.some(s => s.unlocked && s.effect.type === "tempo_skip" && (!s.effect.physruk || Math.random() < 0.5))) {
     // Защитник пытается догнать: шанс = clamp((df.pac - fw.pac + 10) / 30, 0, 0.5)
     // Быстрый DF (pac≥fw.pac) даёт до 50% шанс догнать, медленный — 0%
     const dfPac = dDf?.pac || 70;
@@ -3312,30 +3308,18 @@ function buildAttack(atkLU, defLU, aC, dC, aT, dT, aSyn, dSyn, ms) {
     // Catch: зависит от PHY защитника, не PAC форварда
     const catchChance = Math.max(0.05, Math.min(0.40, ((dDf?.phy || 75) - 60) / 120));
     const dfCaught = catchChance > 0 && Math.random() < catchChance;
-    if (!dfCaught) {
-      steps.push({
-        type: "info",
-        data: {
-          label: "🎵⚡ ТЕМП! Обход защитника",
-          note: `${fw.name} врывается напрямую к воротам!`,
-          synergy: true
-        }
-      });
-    } else {
-      steps.push({
-        type: "info",
-        data: {
-          label: `🏃 ${dDf?.name || "Защитник"} догнал! Темп прерван`,
-          note: `PHY ${dDf?.phy || "?"} — шанс был ${Math.round(((dDf?.phy||75)-60)/120*100)}%`,
-          icon: "🏃",
-          synergy: false
-        }
-      });
-    }
+    steps.push({
+      type: "info",
+      data: {
+        label: dfCaught ? `⚡ Темп! Но ${dDf?.name || "защитник"} догнал (PHY ${dDf?.phy || "?"})` : "🎵⚡ ТЕМП! Обход защитника",
+        note: dfCaught ? `${dDf?.name || "Защитник"} физически настиг — шанс был ${Math.round(((dDf?.phy||75)-60)/120*100)}%` : `${fw.name} врывается напрямую к воротам!`,
+        synergy: true
+      }
+    });
     if (dfCaught && dDf) {
-      // DF догнал — единоборство после поимки
+      // DF догнал — обычный дриблинг
       const d2catch = resolveDuel(fw, dDf, "dribble", aC, midBonus, aSyn, fat, dSyn);
-      steps.push({ type: "duel", data: { ...d2catch, catchDuel: true, label: `⚡ Единоборство после поимки` } });
+      steps.push({ type: "duel", data: d2catch });
       if (!d2catch.won) {
         return { steps, goal: false };
       }
@@ -3379,26 +3363,25 @@ function buildAttack(atkLU, defLU, aC, dC, aT, dT, aSyn, dSyn, ms) {
   };
   if (mm > 1 && d1.won) d2s.midMultNote = `🎵 Тики-така x${mm}`;
   steps.push(d2s);
-  if (d2.tieBreak) {
-    const fk = resolveFK(fw, gk);
-    if (ms && ms[fw.id]) ms[fw.id].shots++;
-    if (fk.goal && ms && ms[fw.id]) ms[fw.id].goals++;
-    steps.push({ type: "foul", data: { label: "🟨 РАВНЫЙ СЧЁТ — ШТРАФНОЙ!", note: `${fw.name} сваливается — судья свистит`, shooter: fw.name, pacGap: 5, shotRoll: fk.shotRoll, gkRoll: fk.gkRoll, goal: fk.goal, foulType: { type: "равная борьба", emoji: "⚖️" }, shotType: fk.shotType } });
-    return { steps, goal: fk.goal };
-  }
   if (!d2.won) {
+    if (d2.tieBreak && dDf && fw && gk) {
+      const fk = resolveFK(fw, gk);
+      if (ms && ms[fw.id]) ms[fw.id].shots++;
+      if (fk.goal && ms && ms[fw.id]) ms[fw.id].goals++;
+      steps.push({ type: "foul", data: { label: "🟨 РАВНЫЙ СЧЁТ — ШТРАФНОЙ!", note: `${fw.name} сваливается — судья свистит`, shooter: fw.name, pacGap: 5, shotRoll: fk.shotRoll, gkRoll: fk.gkRoll, goal: fk.goal, foulType: { type: "равная борьба", emoji: "⚖️" }, shotType: fk.shotType } });
+      return { steps, goal: fk.goal };
+    }
     if (ms && ms[dDf.id]) {
       ms[dDf.id].tackles++;
       ms[dDf.id].clearances++;
     }
     // ── ШТРАФНОЙ — защитник фолит при PAC gap ≥10 (28%) ──────────────────────
-    const _foulGap = Math.round(fw.tec * 0.6 + fw.pac * 0.4) - Math.round((dDf?.phy||75) * 0.55 + (dDf?.vis||70) * 0.45);
-    if (_foulGap >= 5 && Math.random() < 0.28) {
+    if (fw.pac - dDf.pac >= 10 && Math.random() < 0.28) {
       const fk = resolveFK(fw, gk);
       if (ms && ms[fw.id]) ms[fw.id].shots++;
       if (fk.goal && ms && ms[fw.id]) ms[fw.id].goals++;
       if (!fk.goal && ms && ms[gk.id]) ms[gk.id].saves++;
-      steps.push({ type: "foul", data: { label: "🟨 ФОЛ! ШТРАФНОЙ", note: `${dDf?.name || "Защитник"} фолит на ${fw?.name || "Форвард"}`, shooter: fw?.name, pacGap: _foulGap, shotRoll: fk.shotRoll, gkRoll: fk.gkRoll, goal: fk.goal, foulType: fk.foulType, shotType: fk.shotType } });
+      steps.push({ type: "foul", data: { label: "🟨 ФОЛ! ШТРАФНОЙ", note: `${dDf?.name || "Защитник"} фолит на ${fw?.name || "Форвард"}`, shooter: fw?.name, pacGap: fw?.pac - (dDf?.pac || 70), shotRoll: fk.shotRoll, gkRoll: fk.gkRoll, goal: fk.goal, foulType: fk.foulType, shotType: fk.shotType } });
       return { steps, goal: fk.goal };
     }
     // Вынос вперёд — базовый 35% или sharp_counter синергия
@@ -3437,9 +3420,9 @@ function buildAttack(atkLU, defLU, aC, dC, aT, dT, aSyn, dSyn, ms) {
   // ── ПЕНАЛЬТИ — форвард вошёл в штрафную, защитник фолит (4%) ────────────────
   if (d2.won && Math.random() < 0.038) {
     const penBase = Math.round(fw.com * 0.75 + fw.tec * 0.25);
-    const penRoll = rnd(penBase, 16);
+    const penRoll = rnd(penBase, 10);
     const gkPenBase = Math.round(gk.phy * 0.45 + gk.vis * 0.45 + gk.com * 0.10);
-    const gkPenRoll = rnd(gkPenBase, 18);
+    const gkPenRoll = rnd(gkPenBase, 14);
     const penGoal = penRoll > gkPenRoll;
     if (ms && ms[fw.id]) ms[fw.id].shots++;
     if (penGoal && ms && ms[fw.id]) ms[fw.id].goals++;
@@ -3582,24 +3565,9 @@ function buildAttack(atkLU, defLU, aC, dC, aT, dT, aSyn, dSyn, ms) {
       data: {
         label: "💫 ДАЛЬНИЙ УДАР",
         note: `${fw.name} бьёт, обходя второго защитника`,
-        ...ls, shooter: fw.name
+        ...ls
       }
     });
-    if (ls.woodwork) {
-      const rebBase = Math.round(fw.com * 0.52 + fw.tec * 0.33 + fw.vis * 0.15) - 10;
-      const rebRoll = rnd(Math.max(rebBase, 28), 16);
-      const gkRebRoll = rnd(Math.round(gk.phy * 0.78 + gk.vis * 0.18), 16);
-      const rebGoal = rebRoll > gkRebRoll;
-      if (rebGoal && ms && ms[fw.id]) ms[fw.id].goals++;
-      if (!rebGoal && ms && ms[gk.id]) ms[gk.id].saves++;
-      steps.push({ type: "woodwork", data: {
-        isPost: Math.random() < 0.67,
-        fw: { name: fw.name, pos: fw.pos, arch: ARCH[fw.archetype], com: fw.com, tec: fw.tec, archetype: fw.archetype },
-        gk: { name: gk.name, pos: gk.pos },
-        rebound: { base: rebBase, roll: rebRoll, gkRoll: gkRebRoll, goal: rebGoal }
-      }});
-      return { steps, goal: rebGoal };
-    }
     return {
       steps,
       goal: ls.goal
@@ -3650,7 +3618,7 @@ function buildAttack(atkLU, defLU, aC, dC, aT, dT, aSyn, dSyn, ms) {
         steps.push({
           type: "info",
           data: {
-            label: "🧤 ПЕРЕХВАТ! Вратарь-перехватчик", icon: "🧤",
+            label: "🧤 ПЕРЕХВАТ! Вратарь-перехватчик",
             note: `${gk.name} вышел из ворот и поймал мяч`
           }
         });
@@ -3731,7 +3699,7 @@ function buildAttack(atkLU, defLU, aC, dC, aT, dT, aSyn, dSyn, ms) {
         steps.push({
           type: "info",
           data: {
-            label: "🧱 Железный занавес сработал! Вратарь перекрыл зону", icon: "🧱",
+            label: "🧱 Железный занавес сработал! Вратарь перекрыл зону",
             note: `${gk.name} вышел как второй защитник`
           }
         });
@@ -3819,7 +3787,7 @@ function buildAttack(atkLU, defLU, aC, dC, aT, dT, aSyn, dSyn, ms) {
         steps.push({
           type: "info",
           data: {
-            label: "🦵 ПОДСТРАХОВКА СРАБОТАЛА", icon: "🦵",
+            label: "🦵 ПОДСТРАХОВКА СРАБОТАЛА",
             note: `${dDF2.name} догнал и выбил мяч`
           }
         });
@@ -3863,24 +3831,9 @@ function buildAttack(atkLU, defLU, aC, dC, aT, dT, aSyn, dSyn, ms) {
           data: {
             label: "💫 УДАР ПОСЛЕ ПАСА",
             note: `${mf2.name} бьёт из-за штрафной`,
-            ...ls, shooter: mf2.name
+            ...ls
           }
         });
-        if (ls.woodwork) {
-          const rebBase = Math.round(mf2.com * 0.52 + mf2.tec * 0.33 + mf2.vis * 0.15) - 10;
-          const rebRoll = rnd(Math.max(rebBase, 28), 16);
-          const gkRebRoll = rnd(Math.round(gk.phy * 0.78 + gk.vis * 0.18), 16);
-          const rebGoal = rebRoll > gkRebRoll;
-          if (rebGoal && ms && ms[mf2.id]) ms[mf2.id].goals++;
-          if (!rebGoal && ms && ms[gk.id]) ms[gk.id].saves++;
-          steps.push({ type: "woodwork", data: {
-            isPost: Math.random() < 0.67,
-            fw: { name: mf2.name, pos: mf2.pos, arch: ARCH[mf2.archetype], com: mf2.com, tec: mf2.tec, archetype: mf2.archetype },
-            gk: { name: gk.name, pos: gk.pos },
-            rebound: { base: rebBase, roll: rebRoll, gkRoll: gkRebRoll, goal: rebGoal }
-          }});
-          return { steps, goal: rebGoal };
-        }
         return {
           steps,
           goal: ls.goal
@@ -3896,24 +3849,9 @@ function buildAttack(atkLU, defLU, aC, dC, aT, dT, aSyn, dSyn, ms) {
           data: {
             label: "💫 ДАЛЬНИЙ УДАР",
             note: `${fw.name} решает бить сразу`,
-            ...ls, shooter: fw.name
+            ...ls
           }
         });
-        if (ls.woodwork) {
-          const rebBase = Math.round(fw.com * 0.52 + fw.tec * 0.33 + fw.vis * 0.15) - 10;
-          const rebRoll = rnd(Math.max(rebBase, 28), 16);
-          const gkRebRoll = rnd(Math.round(gk.phy * 0.78 + gk.vis * 0.18), 16);
-          const rebGoal = rebRoll > gkRebRoll;
-          if (rebGoal && ms && ms[fw.id]) ms[fw.id].goals++;
-          if (!rebGoal && ms && ms[gk.id]) ms[gk.id].saves++;
-          steps.push({ type: "woodwork", data: {
-            isPost: Math.random() < 0.67,
-            fw: { name: fw.name, pos: fw.pos, arch: ARCH[fw.archetype], com: fw.com, tec: fw.tec, archetype: fw.archetype },
-            gk: { name: gk.name, pos: gk.pos },
-            rebound: { base: rebBase, roll: rebRoll, gkRoll: gkRebRoll, goal: rebGoal }
-          }});
-          return { steps, goal: rebGoal };
-        }
         return {
           steps,
           goal: ls.goal
@@ -3922,7 +3860,7 @@ function buildAttack(atkLU, defLU, aC, dC, aT, dT, aSyn, dSyn, ms) {
     }
   }
   // Phase 3
-  const hasPP = hasPerfectPass(aSyn) && mfAssistId != null && steps.some(s => s.type === "perfect_pass_cross");
+  const hasPP = hasPerfectPass(aSyn) && mfAssistId != null;
   const d3 = resolveDuel(fw, gk, "shot", aC, 0, hasPP ? aSyn : aSyn.filter(s => s.effect.type !== "perfect_pass_bonus"), fat, dSyn);
   td(fw.id, gk.id, d3.won);
   if (ms) {
@@ -3970,11 +3908,7 @@ function buildAttack(atkLU, defLU, aC, dC, aT, dT, aSyn, dSyn, ms) {
         fw: {
           name: fw.name,
           pos: fw.pos,
-          arch: ARCH[fw.archetype],
-          com: fw.com,
-          tec: fw.tec,
-          perk: fw.perk,
-          archetype: fw.archetype
+          arch: ARCH[fw.archetype]
         },
         gk: {
           name: gk.name,
@@ -6876,21 +6810,7 @@ function WoodworkCard({
       marginBottom: 12,
       animation: "fadeIn 0.4s"
     }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: { display: "flex", alignItems: "center", gap: 10, marginBottom: 10, padding: "8px 10px", background: `${col}11`, borderRadius: 8, border: `1px solid ${col}44` }
-  },
-    /*#__PURE__*/React.createElement("div", null,
-      /*#__PURE__*/React.createElement("div", { style: { fontSize: 8, color: col, fontWeight: 700, marginBottom: 2 } }, "ДОБИВАНИЕ"),
-      /*#__PURE__*/React.createElement("div", { style: { fontSize: 14, fontWeight: 800, color: "#fff" } }, fw.name),
-      /*#__PURE__*/React.createElement("div", { style: { fontSize: 10, color: C.muted } },
-        fw.arch?.emoji, " ", fw.arch?.name || fw.archetype,
-        " • COM ", fw.com, " • TEC ", fw.tec
-      ),
-      fw.perk && /*#__PURE__*/React.createElement("div", { style: { fontSize: 9, color: C.gold, marginTop: 2 } },
-        "base: ", rebound.base
-      )
-    )
-  )), /*#__PURE__*/React.createElement("div", {
+  }, fw.name, " \u0438\u0434\u0451\u0442 \u043D\u0430 \u0434\u043E\u0431\u0438\u0432\u0430\u043D\u0438\u0435..."), /*#__PURE__*/React.createElement("div", {
     style: {
       display: "flex",
       justifyContent: "center",
@@ -7849,11 +7769,6 @@ function EventBlock({
     key: i,
     data: s.data,
     isMyAttack: isMe,
-    speed: speed,
-    onDone: i === stepIdx && !allDone ? handleDone : undefined
-  }) : s.type === "golden_moment" ? /*#__PURE__*/React.createElement(GoldenMomentCard, {
-    key: i,
-    data: s.data,
     speed: speed,
     onDone: i === stepIdx && !allDone ? handleDone : undefined
   }) : s.type === "penalty" ? /*#__PURE__*/React.createElement(PenaltyCard, {
@@ -9186,7 +9101,7 @@ function MatchScreen({
       flex: 1,
       height: 6,
       borderRadius: 3,
-      background: i < seasonIdx ? seasonResults[i]?.won ? "rgba(34,197,94,0.85)" : seasonResults[i]?.draw ? "rgba(251,191,36,0.85)" : "rgba(239,68,68,0.75)" : i === seasonIdx ? "rgba(120,120,120,0.45)" : "rgba(255,255,255,0.08)"
+      background: i < seasonIdx ? seasonResults[i]?.won ? "rgba(34,197,94,0.85)" : seasonResults[i]?.score && seasonResults[i].score.split(":")[0] === seasonResults[i].score.split(":")[1] ? "rgba(251,191,36,0.85)" : "rgba(239,68,68,0.75)" : i === seasonIdx ? "rgba(120,120,120,0.45)" : "rgba(255,255,255,0.08)"
     }
   }))), /*#__PURE__*/React.createElement("div", {
     style: {
@@ -9198,9 +9113,9 @@ function MatchScreen({
     key: i,
     style: {
       fontSize: 8,
-      color: r.won ? C.green : r.draw ? C.gold : C.red
+      color: r.won ? C.green : r.score && r.score.split(":")[0] === r.score.split(":")[1] ? C.gold : C.red
     }
-  }, r.won ? "✓" : r.draw ? "=" : "✗", " ", r.oppName, " ", r.score)))), /*#__PURE__*/React.createElement("div", {
+  }, r.won ? "✓" : r.score && r.score.split(":")[0] === r.score.split(":")[1] ? "=" : "✗", " ", r.oppName, " ", r.score)))), /*#__PURE__*/React.createElement("div", {
     style: {
       fontSize: 9,
       color: C.muted,
@@ -9415,12 +9330,10 @@ function MatchScreen({
     onClick: () => {
       if (setSeasonResults) setSeasonResults(prev => [...prev, {
         won: result.myGoals > result.oppGoals,
-        draw: result.myGoals === result.oppGoals,
         score: `${result.myGoals}:${result.oppGoals}`,
         oppName: opp?.name || ""
       }]);
-      // Всегда переходим к следующему сопернику (не зависим от async state)
-      if (setSeasonIdx) setSeasonIdx(i => Math.min(i + 1, SEASON_OPPONENTS.length));
+      if (setSeasonIdx && seasonResults.length === seasonIdx) setSeasonIdx(i => i + 1);
       setMatchDone(false);
       setShowStats(false);
       setActiveIdx(-1);
