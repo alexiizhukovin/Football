@@ -2823,6 +2823,7 @@ function resolveDuel(att, def, phase, coach, midBonus, syn, fatigue = 0, dSyn = 
       dr,
       final: aFinal,
       roll: aRoll,
+      tieBreak,
       oop: att._oop
     },
     def: {
@@ -2838,7 +2839,8 @@ function resolveDuel(att, def, phase, coach, midBonus, syn, fatigue = 0, dSyn = 
       roll: dRoll,
       oop: def._oop
     },
-    midBonus: midAdd
+    midBonus: midAdd,
+    tieBreak
   };
 }
 function resolveCover(helper, att, phase, coach, tactic, syn) {
@@ -3377,6 +3379,13 @@ function buildAttack(atkLU, defLU, aC, dC, aT, dT, aSyn, dSyn, ms) {
   };
   if (mm > 1 && d1.won) d2s.midMultNote = `🎵 Тики-така x${mm}`;
   steps.push(d2s);
+  if (d2.tieBreak) {
+    const fk = resolveFK(fw, gk);
+    if (ms && ms[fw.id]) ms[fw.id].shots++;
+    if (fk.goal && ms && ms[fw.id]) ms[fw.id].goals++;
+    steps.push({ type: "foul", data: { label: "🟨 РАВНЫЙ СЧЁТ — ШТРАФНОЙ!", note: `${fw.name} сваливается — судья свистит`, shooter: fw.name, pacGap: 5, shotRoll: fk.shotRoll, gkRoll: fk.gkRoll, goal: fk.goal, foulType: { type: "равная борьба", emoji: "⚖️" }, shotType: fk.shotType } });
+    return { steps, goal: fk.goal };
+  }
   if (!d2.won) {
     if (ms && ms[dDf.id]) {
       ms[dDf.id].tackles++;
@@ -3925,7 +3934,7 @@ function buildAttack(atkLU, defLU, aC, dC, aT, dT, aSyn, dSyn, ms) {
   });
 
   // ШТАНГА / ПЕРЕКЛАДИНА — когда бросок форварда близко к броску GK (разница ≤ 3)
-  const woodworkZone = !d3.won && Math.abs(d3.att.roll - d3.def.roll) <= 4;
+  const woodworkZone = !d3.won && (d3.tieBreak || Math.abs(d3.att.roll - d3.def.roll) <= 4);
   if (woodworkZone) {
     const isPost = Math.random() < 0.67; // 67% штанга, 33% перекладина
     // Добивание: второй удар со штрафом -20 к base
@@ -4077,47 +4086,6 @@ function simMatch(mySq, oppSq, myC, oppC, myT, oppT, myOvr, oppOvr, mySyn, defSy
       });
       if (res.readingCounterAttack) forceMyAttack = true;
       last = "opp";
-    }
-  }
-  // НИЧЬЯ → Лотерея моментов: один решающий бросок с каждой стороны
-  if (mg === og) {
-    const myFW = buildLineup(mySq, myT).slots.find(s => s.pos === "FW")?.player ||
-                 buildLineup(mySq, myT).slots[0]?.player;
-    const oppFW = buildLineup(oppSq, oppT).slots.find(s => s.pos === "FW")?.player ||
-                  buildLineup(oppSq, oppT).slots[0]?.player;
-    const myGK = buildLineup(mySq, myT).slots.find(s => s.pos === "GK")?.player;
-    const oppGK = buildLineup(oppSq, oppT).slots.find(s => s.pos === "GK")?.player;
-    if (myFW && oppFW && myGK && oppGK) {
-      // Мой момент: FW vs GK с бонусом давления +10
-      const myBase = Math.round(myFW.com * 0.52 + myFW.tec * 0.33 + myFW.vis * 0.15) + 10;
-      const myGKBase = Math.round(myGK.phy * 0.78 + myGK.vis * 0.18);
-      const myR = rnd(myBase, 40); const myGKR = rnd(myGKBase, 28);
-      const myGolden = myR > myGKR;
-      // Момент соперника
-      const oppBase = Math.round(oppFW.com * 0.52 + oppFW.tec * 0.33 + oppFW.vis * 0.15) + 10;
-      const oppGKBase = Math.round(oppGK.phy * 0.78 + oppGK.vis * 0.18);
-      const oppR = rnd(oppBase, 40); const oppGKR = rnd(oppGKBase, 28);
-      const oppGolden = oppR > oppGKR;
-      const goldenEvent = {
-        type: "golden",
-        min: 90,
-        isMyAttack: true,
-        steps: [{
-          type: "golden_moment",
-          data: {
-            myFW: { name: myFW.name, arch: ARCH[myFW.archetype], base: myBase, roll: myR },
-            myGK: { name: myGK.name, gkRoll: myGKR },
-            oppFW: { name: oppFW.name, arch: ARCH[oppFW.archetype], base: oppBase, roll: oppR },
-            oppGK: { name: oppGK.name, gkRoll: oppGKR },
-            myGolden, oppGolden
-          }
-        }],
-        goal: myGolden,
-        counterGoal: oppGolden
-      };
-      evs.push(goldenEvent);
-      if (myGolden && !oppGolden) mg++;
-      else if (oppGolden && !myGolden) og++;
     }
   }
   return {
