@@ -3858,7 +3858,7 @@ function buildAttack(atkLU, defLU, aC, dC, aT, dT, aSyn, dSyn, ms) {
     }
   }
   // Phase 3
-  const hasPP = hasPerfectPass(aSyn) && mfAssistId != null;
+  const hasPP = hasPerfectPass(aSyn) && mfAssistId != null && steps.some(s => s.type === "perfect_pass_cross");
   const d3 = resolveDuel(fw, gk, "shot", aC, 0, hasPP ? aSyn : aSyn.filter(s => s.effect.type !== "perfect_pass_bonus"), fat, dSyn);
   td(fw.id, gk.id, d3.won);
   if (ms) {
