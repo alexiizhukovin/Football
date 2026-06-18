@@ -3294,6 +3294,16 @@ function buildAttack(atkLU, defLU, aC, dC, aT, dT, aSyn, dSyn, ms) {
         ...ls
       }
     });
+    if (ls.woodwork && mf && gk) {
+      const rb = Math.round(mf.com * 0.52 + mf.tec * 0.33 + mf.vis * 0.15) - 10;
+      const rR = rnd(Math.max(rb, 28), 16);
+      const gR = rnd(Math.round(gk.phy * 0.78 + gk.vis * 0.18), 16);
+      const rg = rR > gR;
+      if (rg && ms && ms[mf.id]) ms[mf.id].goals++;
+      if (!rg && ms && ms[gk.id]) ms[gk.id].saves++;
+      steps.push({ type: "woodwork", data: { isPost: Math.random() < 0.67, fw: { name: mf.name, pos: mf.pos, arch: ARCH[mf.archetype], com: mf.com, tec: mf.tec, archetype: mf.archetype }, gk: { name: gk.name, pos: gk.pos }, rebound: { base: rb, roll: rR, gkRoll: gR, goal: rg } } });
+      return { steps, goal: rg };
+    }
     return {
       steps,
       goal: ls.goal
@@ -3568,6 +3578,16 @@ function buildAttack(atkLU, defLU, aC, dC, aT, dT, aSyn, dSyn, ms) {
         ...ls
       }
     });
+    if (ls.woodwork && fw && gk) {
+      const rb = Math.round(fw.com * 0.52 + fw.tec * 0.33 + fw.vis * 0.15) - 10;
+      const rR = rnd(Math.max(rb, 28), 16);
+      const gR = rnd(Math.round(gk.phy * 0.78 + gk.vis * 0.18), 16);
+      const rg = rR > gR;
+      if (rg && ms && ms[fw.id]) ms[fw.id].goals++;
+      if (!rg && ms && ms[gk.id]) ms[gk.id].saves++;
+      steps.push({ type: "woodwork", data: { isPost: Math.random() < 0.67, fw: { name: fw.name, pos: fw.pos, arch: ARCH[fw.archetype], com: fw.com, tec: fw.tec, archetype: fw.archetype }, gk: { name: gk.name, pos: gk.pos }, rebound: { base: rb, roll: rR, gkRoll: gR, goal: rg } } });
+      return { steps, goal: rg };
+    }
     return {
       steps,
       goal: ls.goal
@@ -3834,6 +3854,16 @@ function buildAttack(atkLU, defLU, aC, dC, aT, dT, aSyn, dSyn, ms) {
             ...ls
           }
         });
+        if (ls.woodwork && mf2 && gk) {
+          const rb = Math.round(mf2.com * 0.52 + mf2.tec * 0.33 + mf2.vis * 0.15) - 10;
+          const rR = rnd(Math.max(rb, 28), 16);
+          const gR = rnd(Math.round(gk.phy * 0.78 + gk.vis * 0.18), 16);
+          const rg = rR > gR;
+          if (rg && ms && ms[mf2.id]) ms[mf2.id].goals++;
+          if (!rg && ms && ms[gk.id]) ms[gk.id].saves++;
+          steps.push({ type: "woodwork", data: { isPost: Math.random() < 0.67, fw: { name: mf2.name, pos: mf2.pos, arch: ARCH[mf2.archetype], com: mf2.com, tec: mf2.tec, archetype: mf2.archetype }, gk: { name: gk.name, pos: gk.pos }, rebound: { base: rb, roll: rR, gkRoll: gR, goal: rg } } });
+          return { steps, goal: rg };
+        }
         return {
           steps,
           goal: ls.goal
