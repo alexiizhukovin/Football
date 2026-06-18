@@ -3882,6 +3882,16 @@ function buildAttack(atkLU, defLU, aC, dC, aT, dT, aSyn, dSyn, ms) {
             ...ls
           }
         });
+        if (ls.woodwork && fw && gk) {
+          const rb = Math.round(fw.com * 0.52 + fw.tec * 0.33 + fw.vis * 0.15) - 10;
+          const rR = rnd(Math.max(rb, 28), 16);
+          const gR = rnd(Math.round(gk.phy * 0.78 + gk.vis * 0.18), 16);
+          const rg = rR > gR;
+          if (rg && ms && ms[fw.id]) ms[fw.id].goals++;
+          if (!rg && ms && ms[gk.id]) ms[gk.id].saves++;
+          steps.push({ type: "woodwork", data: { isPost: Math.random() < 0.67, fw: { name: fw.name, pos: fw.pos, arch: ARCH[fw.archetype], com: fw.com, tec: fw.tec, archetype: fw.archetype }, gk: { name: gk.name, pos: gk.pos }, rebound: { base: rb, roll: rR, gkRoll: gR, goal: rg } } });
+          return { steps, goal: rg };
+        }
         return {
           steps,
           goal: ls.goal
